@@ -18,27 +18,31 @@ Aturan umum sebelum mulai tiap task:
       Isi: role (D1), Management IP (D2), VRF (D3), arsip vs status (D4), auth (D5),
       topologi canvas (D6), batas fitur (D7), aturan integritas DB (D8).
       DoD: D1–D8 tertulis dengan alasan + persetujuan pembimbing.
-- [ ] **T0.2 Setup repo & environment** — Next.js + TypeScript + Tailwind + Prisma, PostgreSQL, `.env`, `.gitignore`.
-      DoD: `npm run dev` jalan + `npx prisma migrate dev` sukses di mesin sendiri, commit pertama.
-      Status: skeleton Next.js 16.4.6 + React 19.3.0 + TypeScript + Tailwind 4.3.3 sudah ada di `nims/`.
-      Belum: `npm install` (gagal `EALLOWSCRIPTS` di npm 11.17), `node_modules`, `.env`, `prisma/`, PostgreSQL.
-- [ ] **T0.3 Skeleton auth** — pakai `iron-session` + `scrypt` (`node:crypto`), jangan tulis dari nol.
+- [x] **T0.2 Setup repo & environment** — Next.js + TypeScript + Tailwind + Prisma, PostgreSQL, `.env`, `.gitignore`.
+      DoD: `npm run dev` jalan + `npx prisma migrate dev` sukses di mesin sendiri, commit pertama (`f944701`).
+      Status: Skeleton Next.js 16 + React 19 + TypeScript + Tailwind 4 di `nims/`. Database PostgreSQL `nims` aktif di `localhost:5432`, migration `20261118224448_init` berhasil di-apply.
+- [x] **T0.3 Skeleton auth** — pakai `iron-session` + `scrypt` (`node:crypto`), jangan tulis dari nol.
       DoD: login, logout, halaman terproteksi jalan.
-- [ ] **T0.4 Seeder role & permission** — 4 role PRD §4.5 + daftar permission (`device.view`, dst).
-      DoD: `prisma migrate reset` + `npm run db:seed` menghasilkan 4 role + N permission tanpa error.
+      Status: `/login`, `/api/auth/login`, `/api/auth/logout`, proteksi `(protected)/layout.tsx` & `/dashboard` teruji lolos validasi origin, cookie session terenkripsi, dan redirect unauthenticated.
+- [x] **T0.4 Seeder role & permission** — 4 role PRD §4.5 + daftar permission (`device.view`, dst).
+      DoD: `prisma migrate reset` / migrate + `npm run db:seed` menghasilkan 4 role + N permission tanpa error.
+      Status: `npm run db:seed` berhasil mengeksekusi seeder: 4 role, 21 permission, 1 user admin terisi di PostgreSQL.
 
 ## Fase 1 — Data Master & RBAC (Minggu 2)
 
-- [ ] **T1.1 Migration urutan FK**: sites → rooms → racks → vendors → device_categories →
+- [x] **T1.1 Migration urutan FK**: sites → rooms → racks → vendors → device_categories →
       device_models → users/roles/permissions/role_permissions (D1: satu role per user, tanpa `role_user`).
       DoD: `prisma migrate reset` sukses, `prisma migrate deploy` di DB kosong sukses.
-- [ ] **T1.2 Penegakan permission di backend** — middleware/policy, bukan sembunyikan tombol.
-      DoD: tes otomatis: user tanpa `device.create` → 403.
-- [ ] **T1.3 CRUD master data** — vendor, kategori, model, site (+ ruang/rak bila dipakai).
-      DoD: tidak bisa hapus vendor/site yang masih dipakai perangkat.
-- [ ] **T1.4 Fondasi audit log** — tabel `audit_logs` + observer/base model.
+      Status: Model `Site`, `Room`, `Rack`, `Vendor`, `DeviceCategory`, `DeviceModel`, dan `AuditLog` telah ditambahkan di `schema.prisma`. Migrasi `20261118230741_add_master_data_and_audit` berhasil diaplikasikan dan diuji reset bersih.
+- [x] **T1.2 Penegakan permission di backend** — middleware/policy, bukan sembunyikan tombol.
+      DoD: tes otomatis: user tanpa izin terkait → 403.
+      Status: Helper `requireApiPermission` dan `requirePermission` aktif. Uji otomatis `scripts/test-phase1.ts` memverifikasi operator NOC tanpa izin `site.manage` ditolak dengan HTTP 403.
+- [x] **T1.3 CRUD master data** — vendor, kategori, model, site (+ ruang/rak).
+      DoD: tidak bisa hapus vendor/site yang masih dipakai perangkat/model.
+      Status: Endpoint API CRUD lengkap di `/api/master/**` + UI di `/master`. Uji otomatis memverifikasi penghapusan vendor yang memiliki model terdaftar ditolak dengan HTTP 409.
+- [x] **T1.4 Fondasi audit log** — tabel `audit_logs` + helper `logAudit`.
       DoD: create/update/delete satu record menghasilkan 1 baris log dengan before/after.
-      (Dibangun sekarang supaya modul berikutnya otomatis tercatat.)
+      Status: `src/lib/audit.ts` terintegrasi pada auth dan seluruh mutasi master data dengan sanitasi data sensitif. Uji otomatis membuktikan pencatatan CREATE/DELETE lengkap dengan `beforeData`/`afterData`.
 
 ## Fase 2 — Perangkat (Minggu 3–4)
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
 import { getSession } from '@/lib/session';
+import { logAudit } from '@/lib/audit';
 
 const Schema = z.object({
   username: z.string().trim().min(1),
@@ -32,6 +33,13 @@ export async function POST(req: Request) {
   await session.save();
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  await logAudit({
+    userId: user.id,
+    action: 'LOGIN',
+    entityType: 'User',
+    entityId: user.id,
+    req,
+  });
 
   return NextResponse.json({ message: 'Login berhasil' });
 }

@@ -34,15 +34,112 @@ model RolePermission {
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   name         String
-  username     String    @unique
-  email        String?   @unique
+  username     String     @unique
+  email        String?    @unique
   passwordHash String
   roleId       Int
-  role         Role      @relation(fields: [roleId], references: [id])
-  isActive     Boolean   @default(true)
+  role         Role       @relation(fields: [roleId], references: [id])
+  isActive     Boolean    @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Site {
+  id          Int      @id @default(autoincrement())
+  siteCode    String   @unique
+  name        String
+  siteType    String   @default("pop") // pop, dc, office, customer_site, other
+  address     String?
+  city        String?
+  province    String?
+  latitude    Float?
+  longitude   Float?
+  status      String   @default("active") // active, inactive, maintenance
+  description String?
+  rooms       Room[]
+  racks       Rack[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Room {
+  id          Int      @id @default(autoincrement())
+  siteId      Int
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  name        String
+  floor       String?
+  description String?
+  racks       Rack[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([siteId, name])
+}
+
+model Rack {
+  id           Int      @id @default(autoincrement())
+  siteId       Int
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  roomId       Int?
+  room         Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  name         String
+  unitCapacity Int      @default(42)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([siteId, name])
+}
+
+model Vendor {
+  id             Int           @id @default(autoincrement())
+  name           String        @unique
+  website        String?
+  supportContact String?
+  notes          String?
+  models         DeviceModel[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model DeviceCategory {
+  id          Int           @id @default(autoincrement())
+  name        String
+  code        String        @unique // router, switch, olt, ont, server, radio, firewall, other
+  description String?
+  models      DeviceModel[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model DeviceModel {
+  id             Int            @id @default(autoincrement())
+  vendorId       Int
+  vendor         Vendor         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  categoryId     Int
+  category       DeviceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  modelName      String
+  modelCode      String         @unique
+  description    String?
+  specifications Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // CREATE, UPDATE, DELETE, ARCHIVE, RESTORE, LOGIN, EXPORT
+  entityType String   // Site, Room, Rack, Vendor, DeviceCategory, DeviceModel, User, etc.
+  entityId   Int?
+  beforeData Json?
+  afterData  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 }

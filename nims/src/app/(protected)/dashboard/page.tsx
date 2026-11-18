@@ -1,8 +1,5 @@
 import { requireUser } from '@/lib/auth';
 
-// Session dibaca per request; jangan diprerender saat build.
-export const instant = false;
-
 export default async function DashboardPage() {
   const user = await requireUser();
 
