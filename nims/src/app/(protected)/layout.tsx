@@ -22,6 +22,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
                 Dashboard
               </Link>
               <Link
+                href="/devices"
+                className="text-slate-600 transition hover:text-slate-900"
+              >
+                Perangkat
+              </Link>
+              <Link
                 href="/master"
                 className="text-slate-600 transition hover:text-slate-900"
               >

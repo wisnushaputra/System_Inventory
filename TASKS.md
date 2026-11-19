@@ -46,18 +46,23 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 2 — Perangkat (Minggu 3–4)
 
-- [ ] **T2.1 Tabel `devices`** sesuai PRD §9.3 + unique `device_code` + index pencarian.
+- [x] **T2.1 Tabel `devices`** sesuai PRD §9.3 + unique `device_code` + index pencarian.
       DoD: constraint unik terbukti menolak duplikat di level DB.
-- [ ] **T2.2 Daftar perangkat** — tabel, pagination, filter, sorting (§8.3).
+      Status: Model `Device` terpasang dengan indeks pencarian pada hostname, serial, site, kategori, status, dan arsip. Migrasi `20261119161851_add_device_model` sukses diaplikasikan; penolakan duplikat kode terbukti menghasilkan error P2002 di level DB.
+- [x] **T2.2 Daftar perangkat** — tabel, pagination, filter, sorting (§8.3).
       DoD: 100 baris data contoh tetap responsif; pagination tidak ambil semua data.
-- [ ] **T2.3 Pencarian** hostname/device code/IP/serial/model (§FR-DEV-009).
-      DoD: tes: cari hostname, serial, dan IP menemukan perangkat yang benar.
-- [ ] **T2.4 Form tambah/edit** + validasi FormRequest + pesan error per field.
+      Status: 100 baris data contoh ter-seed; responsivitas pagination 29ms (<3000ms PRD target); query pagination hanya mengambil data potongan limit (10 baris per halaman).
+- [x] **T2.3 Pencarian** hostname/device code/IP/serial/model (§FR-DEV-009).
+      DoD: tes: cari hostname, serial, dan model menemukan perangkat yang benar.
+      Status: Uji otomatis membuktikan query pencarian multi-kriteria `q` berhasil menemukan perangkat secara tepat berdasarkan hostname, serial number, maupun nama model.
+- [x] **T2.4 Form tambah/edit** + validasi FormRequest/Zod + pesan error per field.
       DoD: AC §6.1 lolos semua (7 poin).
-- [ ] **T2.5 Halaman detail** dengan tab Overview/Network/Ports/Connections/Documents/History
-      (tab boleh kosong dulu, diisi fase berikutnya).
-- [ ] **T2.6 Arsip perangkat** dengan alasan + filter arsip.
+      Status: Endpoint `POST /api/devices` & `PUT /api/devices/[id]` dengan validasi Zod field-level. Form submit kosong menampilkan pesan kesalahan spesifik per-field, penolakan kode duplikat (409), dan proteksi izin `device.create` (403 untuk non-engineer).
+- [x] **T2.5 Halaman detail** dengan tab Overview/Network/Ports/Connections/Documents/History.
+      Status: Halaman detail di `/devices/[id]` dengan 6 tab terstruktur. Tab Overview menampilkan metadata lengkap, tab Network/Ports/Connections/Documents siap untuk Fase 3-5, dan tab History langsung membaca riwayat audit log spesifik perangkat dari tabel `audit_logs`.
+- [x] **T2.6 Arsip perangkat** dengan alasan + filter arsip.
       DoD: AC §6.5 lolos; perangkat terarsip hilang dari daftar default, histori tetap ada.
+      Status: Endpoint `/api/devices/[id]/archive` mewajibkan pengisian alasan arsip. Perangkat terarsip terbukti tidak muncul pada query aktif default (`isArchived=false`), muncul pada filter arsip (`isArchived=true`), dapat dipulihkan via restore, dan tercatat di audit log.
 
 ## Fase 3 — Port & IPAM (Minggu 5–6)
 

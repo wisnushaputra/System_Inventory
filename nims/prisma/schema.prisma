@@ -34,18 +34,20 @@ model RolePermission {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  name         String
-  username     String     @unique
-  email        String?    @unique
-  passwordHash String
-  roleId       Int
-  role         Role       @relation(fields: [roleId], references: [id])
-  isActive     Boolean    @default(true)
-  lastLoginAt  DateTime?
-  auditLogs    AuditLog[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             Int        @id @default(autoincrement())
+  name           String
+  username       String     @unique
+  email          String?    @unique
+  passwordHash   String
+  roleId         Int
+  role           Role       @relation(fields: [roleId], references: [id])
+  isActive       Boolean    @default(true)
+  lastLoginAt    DateTime?
+  auditLogs      AuditLog[]
+  createdDevices Device[]   @relation("CreatedDevices")
+  updatedDevices Device[]   @relation("UpdatedDevices")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model Site {
@@ -62,6 +64,7 @@ model Site {
   description String?
   rooms       Room[]
   racks       Rack[]
+  devices     Device[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -74,6 +77,7 @@ model Room {
   floor       String?
   description String?
   racks       Rack[]
+  devices     Device[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -89,6 +93,7 @@ model Rack {
   name         String
   unitCapacity Int      @default(42)
   description  String?
+  devices      Device[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -102,6 +107,7 @@ model Vendor {
   supportContact String?
   notes          String?
   models         DeviceModel[]
+  devices        Device[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -112,6 +118,7 @@ model DeviceCategory {
   code        String        @unique // router, switch, olt, ont, server, radio, firewall, other
   description String?
   models      DeviceModel[]
+  devices     Device[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -126,8 +133,50 @@ model DeviceModel {
   modelCode      String         @unique
   description    String?
   specifications Json?
+  devices        Device[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+}
+
+model Device {
+  id              Int            @id @default(autoincrement())
+  deviceCode      String         @unique
+  hostname        String
+  categoryId      Int
+  category        DeviceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  vendorId        Int
+  vendor          Vendor         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  modelId         Int?
+  model           DeviceModel?   @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  serialNumber    String?
+  siteId          Int
+  site            Site           @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  roomId          Int?
+  room            Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  rackId          Int?
+  rack            Rack?          @relation(fields: [rackId], references: [id], onDelete: SetNull)
+  networkRole     String?        // core, distribution, access, aggregation, cpe, server, other
+  inventoryStatus String         @default("PLANNED") // PLANNED, ACTIVE, MAINTENANCE, RETIRED, LOST
+  managementNotes String?
+  description     String?
+  installedAt     DateTime?
+  warrantyExpiry  DateTime?
+  ownerTeam       String?
+  createdBy       Int?
+  creator         User?          @relation("CreatedDevices", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedBy       Int?
+  updater         User?          @relation("UpdatedDevices", fields: [updatedBy], references: [id], onDelete: SetNull)
+  archivedAt      DateTime?
+  archiveReason   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([hostname])
+  @@index([serialNumber])
+  @@index([siteId])
+  @@index([categoryId])
+  @@index([inventoryStatus])
+  @@index([archivedAt])
 }
 
 model AuditLog {
@@ -135,7 +184,7 @@ model AuditLog {
   userId     Int?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action     String   // CREATE, UPDATE, DELETE, ARCHIVE, RESTORE, LOGIN, EXPORT
-  entityType String   // Site, Room, Rack, Vendor, DeviceCategory, DeviceModel, User, etc.
+  entityType String   // Site, Room, Rack, Vendor, DeviceCategory, DeviceModel, Device, User, etc.
   entityId   Int?
   beforeData Json?
   afterData  Json?
