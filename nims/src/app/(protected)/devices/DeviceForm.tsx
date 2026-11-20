@@ -45,6 +45,7 @@ interface DeviceInitialData {
   installedAt?: string | null;
   warrantyExpiry?: string | null;
   ownerTeam?: string | null;
+  version?: number;
 }
 
 interface Props {
@@ -133,6 +134,7 @@ export function DeviceForm({
       if (formData.ownerTeam) payload.ownerTeam = formData.ownerTeam.trim();
       if (formData.installedAt) payload.installedAt = new Date(formData.installedAt).toISOString();
       if (formData.warrantyExpiry) payload.warrantyExpiry = new Date(formData.warrantyExpiry).toISOString();
+      if (isEdit && initialData?.version) payload.version = initialData.version;
 
       const url = isEdit ? `/api/devices/${initialData?.id}` : '/api/devices';
       const method = isEdit ? 'PUT' : 'POST';

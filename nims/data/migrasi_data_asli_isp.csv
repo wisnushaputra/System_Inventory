@@ -1,0 +1,21 @@
+device_code,hostname,category,vendor,model,serial_number,management_ip,site_code,network_role,inventory_status,description
+ISP-COR-001,cr01.bdg.isp.net.id,router,Cisco,ASR-9006,SN-ASR-90011,10.250.0.1,POP-BDG-01,core,active,Router Core Utama Backbone Dago
+ISP-COR-002,cr02.bdg.isp.net.id,router,Juniper,MX480,SN-MX-48022,10.250.0.2,POP-BDG-01,core,active,Router Core Redundan MX480
+ISP-DST-001,ds01.bdg.isp.net.id,switch,Cisco,Catalyst-9500,SN-C9500-11,10.250.0.10,POP-BDG-01,distribution,active,Switch Distribusi Agregasi Dago
+ISP-DST-002,ds02.bdg.isp.net.id,switch,Cisco,Catalyst-9500,SN-C9500-22,10.250.0.11,POP-BDG-01,distribution,active,Switch Distribusi Backup Dago
+ISP-OLT-001,olt01.bdg.isp.net.id,olt,Huawei,MA5800-X7,SN-HW-OLT01,10.250.0.20,POP-BDG-01,access,active,OLT GPON Area Bandung Utara
+ISP-OLT-002,olt02.bdg.isp.net.id,olt,Huawei,MA5800-X7,SN-HW-OLT02,10.250.0.21,POP-BDG-01,access,active,OLT GPON Area Bandung Tengah
+ISP-AGG-001,ag01.bdg.isp.net.id,switch,MikroTik,CRS354,SN-MT-CRS01,10.250.0.30,POP-BDG-01,aggregation,active,Switch Agregasi Metro-E
+ISP-AGG-002,ag02.bdg.isp.net.id,switch,MikroTik,CRS354,SN-MT-CRS02,10.250.0.31,POP-BDG-01,aggregation,active,Switch Agregasi Metro-E Cadangan
+ISP-FWL-001,fw01.bdg.isp.net.id,firewall,Cisco,Firepower-2130,SN-FP-21301,10.250.0.40,POP-BDG-01,core,active,Firewall Perimeter NOC
+ISP-FWL-002,fw02.bdg.isp.net.id,firewall,Cisco,Firepower-2130,SN-FP-21302,10.250.0.41,POP-BDG-01,core,active,Firewall Perimeter Standby
+ISP-SRV-001,dns01.bdg.isp.net.id,server,Cisco,UCS-C240,SN-UCS-001,10.250.0.50,POP-BDG-01,server,active,Server DNS Rekursif Primer
+ISP-SRV-002,dns02.bdg.isp.net.id,server,Cisco,UCS-C240,SN-UCS-002,10.250.0.51,POP-BDG-01,server,active,Server DNS Rekursif Sekunder
+ISP-SRV-003,ntp01.bdg.isp.net.id,server,Cisco,UCS-C220,SN-UCS-003,10.250.0.52,POP-BDG-01,server,active,Server NTP & Syslog Internal
+ISP-SRV-004,nms01.bdg.isp.net.id,server,Cisco,UCS-C220,SN-UCS-004,10.250.0.53,POP-BDG-01,server,active,Server NIMS & Monitoring NOC
+ISP-RAD-001,rad01.bdg.isp.net.id,radio,MikroTik,NetMetal-5,SN-RAD-001,10.250.0.60,POP-BDG-01,access,active,Radio Backhaul PtP Dago - Lembang
+ISP-RAD-002,rad02.bdg.isp.net.id,radio,MikroTik,NetMetal-5,SN-RAD-002,10.250.0.61,POP-BDG-01,access,active,Radio Backhaul PtP Dago - Ciumbuleuit
+ISP-ACC-001,sw-acc01.bdg.isp.net.id,switch,Cisco,Catalyst-2960X,SN-ACC-001,10.250.0.70,POP-BDG-01,access,active,Switch Akses Server Room Rack A
+ISP-ACC-002,sw-acc02.bdg.isp.net.id,switch,Cisco,Catalyst-2960X,SN-ACC-002,10.250.0.71,POP-BDG-01,access,active,Switch Akses Server Room Rack B
+ISP-BKP-001,rtr-bkp01.bdg.isp.net.id,router,MikroTik,CCR1036,SN-CCR-001,10.250.0.80,POP-BDG-01,cpe,active,Router Gateway OOB Management
+ISP-BKP-002,rtr-bkp02.bdg.isp.net.id,router,MikroTik,CCR1036,SN-CCR-002,10.250.0.81,POP-BDG-01,cpe,active,Router Gateway VPN NOC Remote

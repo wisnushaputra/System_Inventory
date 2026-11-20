@@ -11,6 +11,7 @@ const ConnectionUpdateSchema = z.object({
   status: z.enum(['documented', 'under_review', 'archived']).optional(),
   capacityMbps: z.number().int().positive().optional().nullable(),
   description: z.string().max(500).optional().nullable(),
+  version: z.number().int().positive().optional(),
 });
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -63,10 +64,26 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     );
   }
 
+  // Cek Optimistic Locking (T9.2)
+  if (parsed.data.version !== undefined && parsed.data.version !== current.version) {
+    return NextResponse.json(
+      {
+        message: `Konflik pembaruan (Optimistic Locking): Data koneksi relasi ini telah diperbarui oleh pengguna/sesi lain (versi sistem: ${current.version}, versi formulir: ${parsed.data.version}). Silakan muat ulang data terbaru.`,
+        code: 'CONFLICT_OPTIMISTIC_LOCK',
+        currentVersion: current.version,
+        formVersion: parsed.data.version,
+      },
+      { status: 409 }
+    );
+  }
+
+  const { version: _v, ...fieldsToUpdate } = parsed.data;
+
   const updated = await prisma.networkConnection.update({
     where: { id },
     data: {
-      ...parsed.data,
+      ...fieldsToUpdate,
+      version: { increment: 1 },
       updatedBy: user.id,
     },
     include: {

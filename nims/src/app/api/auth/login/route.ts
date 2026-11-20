@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
 import { getSession } from '@/lib/session';
 import { logAudit } from '@/lib/audit';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '@/lib/rate-limit';
 
 const Schema = z.object({
   username: z.string().trim().min(1),
@@ -16,8 +17,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Permintaan ditolak' }, { status: 403 });
   }
 
+  // T9.1 Rate limiting login (5 percobaan gagal dalam 15 menit)
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+  const rateLimitKey = `login:${clientIp}`;
+  const limitCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
+
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      {
+        message: `Terlalu banyak percobaan login gagal. Akses dibatasi sementara. Silakan coba kembali dalam ${limitCheck.retryAfterSeconds} detik.`,
+        retryAfterSeconds: limitCheck.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': limitCheck.retryAfterSeconds.toString(),
+        },
+      }
+    );
+  }
+
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
+    recordFailedAttempt(rateLimitKey);
     return NextResponse.json({ message: 'Username atau password salah' }, { status: 401 });
   }
 
@@ -25,8 +47,12 @@ export async function POST(req: Request) {
   const ok = user && user.isActive && (await verifyPassword(parsed.data.password, user.passwordHash));
 
   if (!ok) {
+    recordFailedAttempt(rateLimitKey);
     return NextResponse.json({ message: 'Username atau password salah' }, { status: 401 });
   }
+
+  // Reset rate limit jika berhasil login
+  resetRateLimit(rateLimitKey);
 
   const session = await getSession();
   session.userId = user.id;

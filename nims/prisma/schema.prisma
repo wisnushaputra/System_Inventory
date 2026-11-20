@@ -176,6 +176,7 @@ model Device {
   interfaces      Interface[]
   ipAddresses     IpAddress[]
   documents       Document[]
+  version         Int            @default(1)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -293,6 +294,7 @@ model NetworkConnection {
   updater              User?     @relation("UpdatedConnections", fields: [updatedBy], references: [id], onDelete: SetNull)
   archivedAt           DateTime?
   archiveReason        String?
+  version              Int       @default(1)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

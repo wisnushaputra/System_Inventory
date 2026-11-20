@@ -21,6 +21,8 @@ const DeviceUpdateSchema = z.object({
   installedAt: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
   warrantyExpiry: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
   ownerTeam: z.string().trim().max(100).optional().nullable(),
+  version: z.number().int().positive().optional(),
+  expectedUpdatedAt: z.string().optional(),
 });
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -102,6 +104,19 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     );
   }
 
+  // Cek Optimistic Locking (T9.2)
+  if (parsed.data.version !== undefined && parsed.data.version !== current.version) {
+    return NextResponse.json(
+      {
+        message: `Konflik pembaruan (Optimistic Locking): Data perangkat ini telah diperbarui oleh pengguna/sesi lain (versi sistem: ${current.version}, versi formulir: ${parsed.data.version}). Silakan muat ulang data terbaru.`,
+        code: 'CONFLICT_OPTIMISTIC_LOCK',
+        currentVersion: current.version,
+        formVersion: parsed.data.version,
+      },
+      { status: 409 }
+    );
+  }
+
   // Jika mengubah deviceCode, periksa duplikasi
   if (parsed.data.deviceCode && parsed.data.deviceCode !== current.deviceCode) {
     const duplicate = await prisma.device.findUnique({
@@ -115,10 +130,13 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     }
   }
 
+  const { version: _v, expectedUpdatedAt: _u, ...fieldsToUpdate } = parsed.data;
+
   const updated = await prisma.device.update({
     where: { id },
     data: {
-      ...parsed.data,
+      ...fieldsToUpdate,
+      version: { increment: 1 },
       updatedBy: user.id,
     },
     include: {
