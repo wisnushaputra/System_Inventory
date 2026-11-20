@@ -30,6 +30,9 @@ async function login(username: string, password: string): Promise<string> {
 async function runTests() {
   console.log('=== MEMULAI TEST INTEGRASI FASE 7 (TOPOLOGI & LAYOUT) ===\n');
 
+  // Bersihkan layout sebelumnya agar tes idempoten
+  await prisma.topologyLayout.deleteMany({});
+
   // 1. Autentikasi Admin & Operator
   const adminCookie = await login('admin', 'Admin123!');
   console.log('✓ [Auth] Admin login berhasil');
@@ -42,7 +45,7 @@ async function runTests() {
   const devs = await prisma.device.findMany({
     where: { inventoryStatus: 'ACTIVE', archivedAt: null },
     take: 2,
-    include: { interfaces: true },
+    include: { interfaces: true, site: true },
   });
   assert.ok(devs.length >= 2, 'Perlu minimal 2 perangkat aktif untuk topologi');
   const devA = devs[0];
@@ -152,7 +155,7 @@ async function runTests() {
     assert.strictEqual(resFilteredSite.status, 200);
     const siteData = await resFilteredSite.json();
     for (const n of siteData.nodes) {
-      assert.strictEqual(n.data.siteCode, devA.siteCode || n.data.siteCode);
+      assert.strictEqual(n.data.siteCode, devA.site.siteCode);
     }
     console.log(`✓ T7.1: Filter siteId=${devA.siteId} berfungsi akurat (${siteData.nodes.length} node)`);
 

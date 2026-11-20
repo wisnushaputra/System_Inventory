@@ -126,9 +126,11 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 8 — Impor (Minggu 10–11, P1)
 
-- [ ] **T8.1 Template CSV perangkat** + validasi kolom/tipe + preview + laporan error per baris.
+- [x] **T8.1 Template CSV perangkat** + validasi kolom/tipe + preview + laporan error per baris.
       DoD: file 10 baris dengan 2 error → 8 tersimpan, 2 dilaporkan dengan nomor baris.
-- [ ] **T8.2 Catat hasil impor** — user, waktu, jumlah sukses/gagal.
+      Status: Endpoint `/api/import/devices/template`, `/api/import/devices/preview`, dan `/api/import/devices/execute` selesai beserta antarmuka `/devices/import` (`DeviceImportClient.tsx`). Template CSV disajikan berstandar PRD §19.3 lengkap dengan UTF-8 BOM dan header nosniff. Validasi kolom, relasi kategori, vendor, site, dan alokasi management IP dilakukan secara ketat. Terbukti via tes integrasi `scripts/test-phase8.ts`: berkas 10 baris dengan 2 error menghasilkan tepat 8 perangkat tersimpan di basis data dan 2 baris error ditolak serta dilaporkan lengkap dengan nomor baris fisik berkas CSV (DoD lolos).
+- [x] **T8.2 Catat hasil impor** — user, waktu, jumlah sukses/gagal.
+      Status: Tipe audit log diperluas dengan aksi `IMPORT`. Setiap eksekusi impor terbukti tercatat di `audit_logs` memuat ID pengguna yang mengeksekusi, timestamp, `successCount=8`, `failedCount=2`, `totalCount=10`, serta rincian kesalahan per baris. RBAC ditegakkan via izin `device.create`: Operator NOC tanpa izin terbukti ditolak HTTP 403 dan insiden dicatat di audit log (`action='ACCESS_DENIED'`) (DoD lolos).
 
 ## Fase 9 — Hardening & UAT (Minggu 11–12)
 

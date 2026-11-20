@@ -10,6 +10,7 @@ export type AuditAction =
   | 'LOGIN'
   | 'LOGOUT'
   | 'EXPORT'
+  | 'IMPORT'
   | 'CREATE_INTERFACE'
   | 'UPDATE_INTERFACE'
   | 'DELETE_INTERFACE'
