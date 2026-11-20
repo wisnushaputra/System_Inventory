@@ -6,6 +6,7 @@ export const instant = false;
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const canViewAudit = hasPermission(user, 'audit.view');
+  const canManageUsers = hasPermission(user, 'user.manage');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -40,6 +41,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
               >
                 Topologi
               </Link>
+              {canManageUsers && (
+                <Link
+                  href="/users"
+                  className="text-slate-600 transition hover:text-slate-900"
+                >
+                  Pengguna
+                </Link>
+              )}
               {canViewAudit && (
                 <Link
                   href="/audit-logs"

@@ -15,6 +15,7 @@
 9. [Impor Data Massal Berkas CSV](#9-impor-data-massal-berkas-csv)
 10. [Ekspor Laporan & Proteksi Spreadsheet](#10-ekspor-laporan--proteksi-spreadsheet)
 11. [Penelusuran Jejak Audit (Audit Trail)](#11-penelusuran-jejak-audit-audit-trail)
+12. [Manajemen Pengguna & Hak Akses (User Management)](#12-manajemen-pengguna--hak-akses-user-management)
 
 ---
 
@@ -41,6 +42,7 @@ Bilah navigasi atas (*top navbar*) menyajikan menu utama sesuai hak akses peran 
 - **Perangkat**: Manajemen daftar inventaris perangkat jaringan, form pendaftaran, impor CSV, dan ekspor CSV.
 - **Topologi**: Kanvas grafik interaktif visualisasi hubungan kabel dan perangkat jaringan.
 - **Master Data**: Manajemen referensi Site/POP, Ruangan Server, Rak, Vendor, Kategori, dan Model.
+- **Pengguna** *(Khusus Admin)*: Manajemen pengguna, penetapan peran kerja, status aktif, dan reset kata sandi akses sistem.
 - **Audit Log** *(Khusus Admin, Supervisor, Auditor)*: Catatan kronologis seluruh perubahan data sistem beserta peninjau *diff*.
 
 ---
@@ -229,3 +231,39 @@ NIMS dilengkapi perlindungan keamanan formula injection otomatis: jika ada nama 
 Halaman **Audit Log** (`/audit-logs`) menyajikan jejak rekam digital seluruh peristiwa di sistem:
 1. **Filter Audit:** Cari aktivitas berdasarkan Nama Pengguna, Tipe Entitas (Device, User, Connection, Document, dll), Jenis Aksi (CREATE, UPDATE, DELETE, ARCHIVE, RESTORE, LOGIN, EXPORT, IMPORT), serta Rentang Tanggal.
 2. **Peninjau Diff (Before vs After):** Klik tombol **"Lihat Diff"** pada aksi pembaruan (`UPDATE`) untuk melihat perbandingan data sebelum dan sesudah perubahan secara berdampingan dengan penanda warna yang jelas. Seluruh password dan kunci rahasia otomatis disamarkan (`[REDACTED]`).
+
+---
+
+## 12. Manajemen Pengguna & Hak Akses (User Management)
+
+Khusus pengguna dengan peran **Admin** yang memiliki izin `user.manage`, modul administrasi pengguna dapat diakses melalui menu **"Pengguna"** di navbar atas atau langsung membuka alamat `/users`.
+
+### 12.1 Fitur dan Alur Penggunaan
+
+1. **Melihat dan Menyaring Daftar Pengguna:**
+   - Gunakan bilah pencarian untuk mencari pengguna berdasarkan nama, username, atau alamat email.
+   - Gunakan filter **Peran (Role)** untuk menyaring pengguna berdasarkan penugasan (Admin, Network Engineer, Operator NOC, Supervisor).
+   - Gunakan filter **Status Akun** untuk memisahkan pengguna aktif dan nonaktif.
+   - Tabel menampilkan informasi nama lengkap, username, email, badge peran berwarna, status aktif, tanggal terakhir login, dan tombol aksi per baris.
+
+2. **Menambahkan Pengguna Baru:**
+   - Klik tombol **"+ Tambah Pengguna"** di sudut kanan atas.
+   - Isi formulir modal: Nama Lengkap, Username (unik, karakter alfanumerik serta `_` atau `-`), Alamat Email (opsional), Peran (Role), Kata Sandi Awal (minimal 8 karakter), Konfirmasi Kata Sandi, dan centang status akun aktif.
+   - Klik **"Simpan Pengguna"**. Sistem akan meng-hash kata sandi menggunakan algoritma `scrypt`, menyimpan data, dan mencatat aksi pembuatan akun ke jejak audit log.
+
+3. **Mengubah Data Pengguna (Edit User):**
+   - Klik tombol **"Edit"** pada baris pengguna yang ingin diubah.
+   - Admin dapat memperbarui nama lengkap, email, peran, dan status keaktifan akun.
+   - **Proteksi Akun Mandiri (Self-Protection):** Jika mengedit akun milik sendiri yang sedang login, sistem secara otomatis menonaktifkan perubahan peran dan toggle penonaktifan akun untuk mencegah admin mengunci dirinya sendiri di luar sistem.
+
+4. **Mereset Kata Sandi Staf:**
+   - Jika ada personel yang lupa kata sandi atau memerlukan penggantian kredensial berkala, klik tombol **"Reset Password"** pada baris pengguna terkait.
+   - Masukkan kata sandi baru (minimal 8 karakter) dan konfirmasi kata sandi baru.
+   - Klik **"Simpan Kata Sandi"**. Kata sandi lama akan langsung tidak berlaku, dan staf bersangkutan dapat login menggunakan kata sandi baru tersebut.
+
+5. **Menghapus Pengguna (Delete User):**
+   - Klik tombol **"Hapus"** pada baris pengguna yang ingin dihapus.
+   - Muncul dialog konfirmasi bahaya untuk memastikan penghapusan tidak dilakukan secara tidak sengaja.
+   - **Perlindungan Akun Sendiri:** Tombol hapus dinonaktifkan pada akun admin yang sedang login saat ini.
+   - Saat pengguna dihapus, integritas basis data tetap terjaga: catatan audit log lampau tidak ikut hilang demi kepatuhan audit sistem.
+
