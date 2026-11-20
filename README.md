@@ -28,16 +28,16 @@ Sistem ini menggantikan pencatatan spreadsheet manual yang terfragmentasi dengan
 
 ## 🛠️ Stack Teknologi
 
-| Komponen | Teknologi | Keterangan |
-|---|---|---|
-| **Framework** | Next.js 16 (App Router) | Server Components & Route Handlers |
-| **Bahasa** | TypeScript 5 | Strict type-safety end-to-end |
-| **Styling** | Tailwind CSS v4 | Antarmuka responsif dan modern |
-| **Basis Data** | PostgreSQL 18 (Local) | Database relasional ACID |
-| **ORM** | Prisma ORM 6.19 | Migrasi skema & parameterized queries |
-| **Autentikasi** | `iron-session` + `node:crypto.scrypt` | Cookie terenkripsi HttpOnly & SameSite=Lax |
-| **Validasi** | Zod | Validasi skema di boundary sistem |
-| **Grafik Topologi**| `@xyflow/react` | Kanvas graf visual topologi interaktif |
+| Komponen                  | Teknologi                                 | Keterangan                                 |
+| ------------------------- | ----------------------------------------- | ------------------------------------------ |
+| **Framework**       | Next.js 16 (App Router)                   | Server Components & Route Handlers         |
+| **Bahasa**          | TypeScript 5                              | Strict type-safety end-to-end              |
+| **Styling**         | Tailwind CSS v4                           | Antarmuka responsif dan modern             |
+| **Basis Data**      | PostgreSQL 18 (Local)                     | Database relasional ACID                   |
+| **ORM**             | Prisma ORM 6.19                           | Migrasi skema & parameterized queries      |
+| **Autentikasi**     | `iron-session` + `node:crypto.scrypt` | Cookie terenkripsi HttpOnly & SameSite=Lax |
+| **Validasi**        | Zod                                       | Validasi skema di boundary sistem          |
+| **Grafik Topologi** | `@xyflow/react`                         | Kanvas graf visual topologi interaktif     |
 
 ---
 
@@ -52,18 +52,22 @@ Sistem ini menggantikan pencatatan spreadsheet manual yang terfragmentasi dengan
 ## ⚙️ Panduan Instalasi & Menjalankan
 
 ### 1. Kloning Repositori & Masuk ke Direktori
+
 ```bash
 git clone https://github.com/username/System_Inventory.git
 cd System_Inventory/nims
 ```
 
 ### 2. Instalasi Dependensi
+
 ```bash
 npm install
 ```
 
 ### 3. Konfigurasi Lingkungan (`.env`)
+
 Salin berkas contoh atau buat berkas `.env` pada direktori `nims/`:
+
 ```env
 # Koneksi Database PostgreSQL
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nims?schema=public"
@@ -77,7 +81,9 @@ NODE_ENV=production
 ```
 
 ### 4. Migrasi Basis Data & Seeding Data Awal
+
 Jalankan migrasi skema database dan masukkan data master awal (roles, permissions, default users, vendors, categories, sites, rooms, racks):
+
 ```bash
 npx prisma migrate dev
 npx tsx prisma/seed.ts
@@ -86,12 +92,15 @@ npx tsx prisma/seed.ts
 ### 5. Menjalankan Aplikasi
 
 #### Mode Pengembangan (Development):
+
 ```bash
 npm run dev
 ```
+
 Akses aplikasi melalui peramban web di: `http://localhost:3000`.
 
 #### Mode Produksi (Production Build & Start):
+
 ```bash
 npm run build
 npm start
@@ -103,9 +112,9 @@ npm start
 
 Setelah menjalankan `prisma/seed.ts`, akun-akun berikut siap digunakan:
 
-| Username | Password | Role | Hak Akses Utama |
-|---|---|---|---|
-| `admin` | `Admin123!` | **Admin** | Akses penuh seluruh modul (CRUD, Audit, Master, Ekspor, Impor, Dokumen) |
+| Username     | Password         | Role                   | Hak Akses Utama                                                                        |
+| ------------ | ---------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| `admin`    | `Admin123!`    | **Admin**        | Akses penuh seluruh modul (CRUD, Audit, Master, Ekspor, Impor, Dokumen)                |
 | `operator` | `Operator123!` | **Operator NOC** | Hak baca/tulis terbatas perangkat & relasi (tidak dapat melihat audit log atau ekspor) |
 
 ---
@@ -205,5 +214,6 @@ System_Inventory/
 ---
 
 ## 📜 Lisensi & Hak Cipta
-Dikembangkan untuk keperluan Kerja Praktik (KP) Teknik Informatika / Sistem Informasi.  
+
+Dikembangkan untuk keperluan Kerja Praktik (KP) Teknik Informatika / Sistem Informasi.
 Hak Cipta © 2026.
