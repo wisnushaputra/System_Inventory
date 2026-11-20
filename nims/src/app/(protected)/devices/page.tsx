@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { requirePermission, hasPermission } from '@/lib/auth';
-import { DeviceListClient } from './DeviceListClient';
+import { DevicesPageClient } from './DevicesPageClient';
 
 export const instant = false;
 
@@ -10,7 +10,7 @@ export default async function DevicesPage() {
   const [categories, vendors, sites] = await Promise.all([
     prisma.deviceCategory.findMany({ orderBy: { name: 'asc' } }),
     prisma.vendor.findMany({ orderBy: { name: 'asc' } }),
-    prisma.site.findMany({ orderBy: { name: 'asc' } }),
+    prisma.site.findMany({ orderBy: { siteCode: 'asc' } }),
   ]);
 
   const canCreate = hasPermission(user, 'device.create');
@@ -23,7 +23,7 @@ export default async function DevicesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Inventaris Perangkat</h1>
           <p className="text-sm text-slate-500">
-            Daftar perangkat jaringan aktif dan terarsip dengan filter kategori, vendor, dan lokasi.
+            Navigasi inventaris perangkat bertingkat dari Point of Presence (POP) ke Site Pelanggan.
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -54,7 +54,7 @@ export default async function DevicesPage() {
         </div>
       </div>
 
-      <DeviceListClient
+      <DevicesPageClient
         categories={categories}
         vendors={vendors}
         sites={sites}

@@ -18,6 +18,7 @@ erDiagram
     USER ||--o{ TOPOLOGY_LAYOUT : "menyimpan_tata_letak"
     USER ||--o{ DOCUMENT : "mengunggah"
 
+    SITE ||--o{ SITE : "parent_pop_ke_child_site"
     SITE ||--o{ ROOM : "memiliki"
     SITE ||--o{ RACK : "memiliki"
     ROOM ||--o{ RACK : "menampung"
@@ -81,13 +82,13 @@ erDiagram
         string siteCode UK
         string name
         string siteType
+        int parentSiteId FK "Self-relation ke POP induk"
         string address
         string city
         float latitude
         float longitude
-        string contactPerson
-        string contactPhone
-        string notes
+        string status
+        string description
     }
 
     ROOM {

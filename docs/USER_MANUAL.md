@@ -47,11 +47,20 @@ Bilah navigasi atas (*top navbar*) menyajikan menu utama sesuai hak akses peran 
 
 ## 3. Manajemen Inventaris Perangkat
 
-### 3.1 Melihat Daftar & Memfilter Perangkat
-1. Buka menu **"Perangkat"** (`/devices`).
-2. Gunakan bilah pencarian untuk mencari berdasarkan **Hostname**, **Kode Perangkat**, **Serial Number**, atau **IP Manajemen**.
-3. Gunakan filter dropdown untuk menyaring data berdasarkan **Kategori** (Router, Switch, OLT, dll), **Vendor**, **Lokasi Site**, **Status Inventaris**, atau **Role Jaringan**.
-4. Untuk melihat perangkat yang telah dinonaktifkan, centang opsi **"Tampilkan Terarsip"**.
+### 3.1 Navigasi Inventaris Perangkat (Hierarki POP -> Customer -> Perangkat)
+Halaman Inventaris Perangkat (`/devices`) mendukung navigasi bertingkat intuitif dan pencarian global:
+
+1. **Mode Navigasi Hierarki (Default):**
+   - **Level 1 (Pilih POP):** Halaman depan menampilkan kartu-kartu Point of Presence (POP) utama beserta metrik ringkasan (jumlah site pelanggan dan total perangkat). Klik kartu POP yang diinginkan.
+   - **Level 2 (Pilih Customer / Site Pelanggan):** Menampilkan daftar Site Pelanggan di bawah POP terpilih beserta jumlah perangkat aktif masing-masing. Operator juga dapat beralih ke sub-tab *"Perangkat Internal POP"* untuk melihat router/switch core yang terpasang di ruangan POP tersebut.
+   - **Level 3 (Daftar Perangkat):** Menampilkan tabel lengkap perangkat yang terpasang pada customer site tersebut (kode aset, hostname, IP manajemen, serial number, status, aksi detail/arsip). Dilengkapi tombol cepat *"+ Tambah Perangkat ke Site Ini"* yang otomatis mengisi lokasi site.
+   - **Breadcrumb Navigation:** Jalur navigasi di bagian atas (`Semua POP / [Nama POP] / [Nama Customer]`) memudahkan operator berpindah level kapan saja dengan satu klik.
+
+2. **Mode Semua Perangkat (Tabel Global):**
+   - Klik tab **"Semua Perangkat (Tabel Global)"** di bagian atas untuk melihat seluruh perangkat dalam satu tabel flat.
+   - Gunakan bilah pencarian global untuk mencari perangkat berdasarkan **Hostname**, **Kode Perangkat**, **Serial Number**, atau **IP Manajemen** lintas-POP.
+   - Gunakan filter dropdown untuk menyaring berdasarkan **Kategori** (Router, Switch, OLT, dll), **Vendor**, **Lokasi Site**, **Status**, atau **Role Jaringan**.
+   - Opsi **"Tampilkan Terarsip"** untuk melihat perangkat yang dinonaktifkan.
 
 ### 3.2 Menambah Perangkat Baru
 1. Klik tombol **"+ Tambah Perangkat"** di kanan atas halaman inventaris.

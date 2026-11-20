@@ -15,6 +15,7 @@ const SiteCreateSchema = z.object({
   longitude: z.number().min(-180).max(180).optional().nullable(),
   status: z.enum(['active', 'inactive', 'maintenance']).default('active'),
   description: z.string().max(500).optional().nullable(),
+  parentSiteId: z.number().int().positive().optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -25,6 +26,14 @@ export async function GET(req: Request) {
   const q = url.searchParams.get('q')?.trim();
   const siteType = url.searchParams.get('siteType')?.trim();
   const status = url.searchParams.get('status')?.trim();
+  const parentParam = url.searchParams.get('parentSiteId')?.trim();
+
+  let parentFilter: object = {};
+  if (parentParam === 'null') {
+    parentFilter = { parentSiteId: null };
+  } else if (parentParam && !isNaN(Number(parentParam))) {
+    parentFilter = { parentSiteId: Number(parentParam) };
+  }
 
   const sites = await prisma.site.findMany({
     where: {
@@ -40,11 +49,15 @@ export async function GET(req: Request) {
           : {},
         siteType ? { siteType } : {},
         status ? { status } : {},
+        parentFilter,
       ],
     },
     include: {
+      parentSite: {
+        select: { id: true, siteCode: true, name: true, siteType: true },
+      },
       _count: {
-        select: { rooms: true, racks: true },
+        select: { rooms: true, racks: true, devices: true, childSites: true },
       },
     },
     orderBy: { siteCode: 'asc' },

@@ -106,10 +106,18 @@ async function main() {
     });
   }
 
-  // Seed Contoh Site, Room, Rack
+  // Seed Contoh Site, Room, Rack & Customer Sites (Hierarki)
   const siteBdg = await prisma.site.upsert({
     where: { siteCode: 'POP-BDG-01' },
-    update: {},
+    update: {
+      name: 'POP Bandung Dago',
+      siteType: 'pop',
+      address: 'Jl. Ir. H. Juanda No. 100',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Point of Presence area Dago Bandung',
+    },
     create: {
       siteCode: 'POP-BDG-01',
       name: 'POP Bandung Dago',
@@ -119,6 +127,131 @@ async function main() {
       province: 'Jawa Barat',
       status: 'active',
       description: 'Point of Presence area Dago Bandung',
+    },
+  });
+
+  const siteJkt = await prisma.site.upsert({
+    where: { siteCode: 'POP-JKT-01' },
+    update: {
+      name: 'POP Jakarta Cyber',
+      siteType: 'pop',
+      address: 'Gedung Cyber 1 Lt. 3, Jl. Kuningan Barat No. 8',
+      city: 'Jakarta Selatan',
+      province: 'DKI Jakarta',
+      status: 'active',
+      description: 'Point of Presence Gedung Cyber Kuningan',
+    },
+    create: {
+      siteCode: 'POP-JKT-01',
+      name: 'POP Jakarta Cyber',
+      siteType: 'pop',
+      address: 'Gedung Cyber 1 Lt. 3, Jl. Kuningan Barat No. 8',
+      city: 'Jakarta Selatan',
+      province: 'DKI Jakarta',
+      status: 'active',
+      description: 'Point of Presence Gedung Cyber Kuningan',
+    },
+  });
+
+  // Customer Sites di bawah POP-BDG-01
+  const custTlk = await prisma.site.upsert({
+    where: { siteCode: 'CUST-TLK-01' },
+    update: {
+      name: 'PT Telkom Dago Hub',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Lembong No. 11',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Enterprise Telkom Hub Dago',
+    },
+    create: {
+      siteCode: 'CUST-TLK-01',
+      name: 'PT Telkom Dago Hub',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Lembong No. 11',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Enterprise Telkom Hub Dago',
+    },
+  });
+
+  const custBca = await prisma.site.upsert({
+    where: { siteCode: 'CUST-BCA-01' },
+    update: {
+      name: 'Bank BCA KCU Dago',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Ir. H. Juanda No. 122',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Perbankan BCA KCU Dago',
+    },
+    create: {
+      siteCode: 'CUST-BCA-01',
+      name: 'Bank BCA KCU Dago',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Ir. H. Juanda No. 122',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Perbankan BCA KCU Dago',
+    },
+  });
+
+  const custItb = await prisma.site.upsert({
+    where: { siteCode: 'CUST-ITB-01' },
+    update: {
+      name: 'Institut Teknologi Bandung (Ganesha)',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Ganesha No. 10',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Institusi Pendidikan ITB',
+    },
+    create: {
+      siteCode: 'CUST-ITB-01',
+      name: 'Institut Teknologi Bandung (Ganesha)',
+      siteType: 'customer_site',
+      parentSiteId: siteBdg.id,
+      address: 'Jl. Ganesha No. 10',
+      city: 'Bandung',
+      province: 'Jawa Barat',
+      status: 'active',
+      description: 'Pelanggan Institusi Pendidikan ITB',
+    },
+  });
+
+  // Customer Sites di bawah POP-JKT-01
+  const custMdr = await prisma.site.upsert({
+    where: { siteCode: 'CUST-MDR-01' },
+    update: {
+      name: 'Bank Mandiri Tower Sudirman',
+      siteType: 'customer_site',
+      parentSiteId: siteJkt.id,
+      address: 'Jl. Jend. Sudirman Kav. 54-55',
+      city: 'Jakarta Selatan',
+      province: 'DKI Jakarta',
+      status: 'active',
+      description: 'Pelanggan Perbankan Mandiri Tower',
+    },
+    create: {
+      siteCode: 'CUST-MDR-01',
+      name: 'Bank Mandiri Tower Sudirman',
+      siteType: 'customer_site',
+      parentSiteId: siteJkt.id,
+      address: 'Jl. Jend. Sudirman Kav. 54-55',
+      city: 'Jakarta Selatan',
+      province: 'DKI Jakarta',
+      status: 'active',
+      description: 'Pelanggan Perbankan Mandiri Tower',
     },
   });
 
@@ -147,9 +280,11 @@ async function main() {
 
   // Seed Contoh Model
   const mikrotikVendor = await prisma.vendor.findUniqueOrThrow({ where: { name: 'MikroTik' } });
+  const ciscoVendor = await prisma.vendor.findUniqueOrThrow({ where: { name: 'Cisco' } });
   const routerCat = await prisma.deviceCategory.findUniqueOrThrow({ where: { code: 'router' } });
+  const switchCat = await prisma.deviceCategory.findUniqueOrThrow({ where: { code: 'switch' } });
 
-  await prisma.deviceModel.upsert({
+  const ccrModel = await prisma.deviceModel.upsert({
     where: { modelCode: 'CCR1036-8G-2S+' },
     update: {},
     create: {
@@ -158,6 +293,112 @@ async function main() {
       modelName: 'Cloud Core Router 1036-8G-2S+',
       modelCode: 'CCR1036-8G-2S+',
       description: 'Router 36 core dengan 8 port GbE dan 2 port SFP+',
+    },
+  });
+
+  const catalystModel = await prisma.deviceModel.upsert({
+    where: { modelCode: 'WS-C2960X-24TS-L' },
+    update: {},
+    create: {
+      vendorId: ciscoVendor.id,
+      categoryId: switchCat.id,
+      modelName: 'Catalyst 2960-X 24 GigE',
+      modelCode: 'WS-C2960X-24TS-L',
+      description: 'Switch enterprise 24 port GbE dan 4 SFP',
+    },
+  });
+
+  // Seed Perangkat contoh
+  const adminUser = await prisma.user.findUniqueOrThrow({ where: { username: 'admin' } });
+
+  await prisma.device.upsert({
+    where: { deviceCode: 'DEV-BDG-RTR-01' },
+    update: {},
+    create: {
+      deviceCode: 'DEV-BDG-RTR-01',
+      hostname: 'pop-bdg-core01',
+      categoryId: routerCat.id,
+      vendorId: mikrotikVendor.id,
+      modelId: ccrModel.id,
+      serialNumber: 'MT-CCR-992144',
+      siteId: siteBdg.id,
+      roomId: roomBdg.id,
+      networkRole: 'core',
+      inventoryStatus: 'ACTIVE',
+      createdBy: adminUser.id,
+      description: 'Core router utama POP Bandung',
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { deviceCode: 'DEV-TLK-SW-01' },
+    update: {},
+    create: {
+      deviceCode: 'DEV-TLK-SW-01',
+      hostname: 'cust-tlk-sw01',
+      categoryId: switchCat.id,
+      vendorId: ciscoVendor.id,
+      modelId: catalystModel.id,
+      serialNumber: 'CS-CAT-881230',
+      siteId: custTlk.id,
+      networkRole: 'distribution',
+      inventoryStatus: 'ACTIVE',
+      createdBy: adminUser.id,
+      description: 'Switch distribusi pelanggan PT Telkom',
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { deviceCode: 'DEV-BCA-RTR-01' },
+    update: {},
+    create: {
+      deviceCode: 'DEV-BCA-RTR-01',
+      hostname: 'cust-bca-gw01',
+      categoryId: routerCat.id,
+      vendorId: mikrotikVendor.id,
+      modelId: ccrModel.id,
+      serialNumber: 'MT-CCR-330192',
+      siteId: custBca.id,
+      networkRole: 'cpe',
+      inventoryStatus: 'ACTIVE',
+      createdBy: adminUser.id,
+      description: 'Gateway CPE router pelanggan Bank BCA',
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { deviceCode: 'DEV-ITB-SW-01' },
+    update: {},
+    create: {
+      deviceCode: 'DEV-ITB-SW-01',
+      hostname: 'cust-itb-sw01',
+      categoryId: switchCat.id,
+      vendorId: ciscoVendor.id,
+      modelId: catalystModel.id,
+      serialNumber: 'CS-CAT-110023',
+      siteId: custItb.id,
+      networkRole: 'access',
+      inventoryStatus: 'ACTIVE',
+      createdBy: adminUser.id,
+      description: 'Switch akses Lab Komputer ITB Ganesha',
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { deviceCode: 'DEV-MDR-SW-01' },
+    update: {},
+    create: {
+      deviceCode: 'DEV-MDR-SW-01',
+      hostname: 'cust-mdr-sw01',
+      categoryId: switchCat.id,
+      vendorId: ciscoVendor.id,
+      modelId: catalystModel.id,
+      serialNumber: 'CS-CAT-445566',
+      siteId: custMdr.id,
+      networkRole: 'cpe',
+      inventoryStatus: 'ACTIVE',
+      createdBy: adminUser.id,
+      description: 'Switch CPE pelanggan Bank Mandiri Tower',
     },
   });
 

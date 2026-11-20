@@ -29,17 +29,17 @@ interface RackOption extends Option {
 
 interface DeviceInitialData {
   id?: number;
-  deviceCode: string;
-  hostname: string;
-  categoryId: number;
-  vendorId: number;
+  deviceCode?: string;
+  hostname?: string;
+  categoryId?: number;
+  vendorId?: number;
   modelId?: number | null;
-  siteId: number;
+  siteId?: number;
   roomId?: number | null;
   rackId?: number | null;
   serialNumber?: string | null;
   networkRole?: string | null;
-  inventoryStatus: string;
+  inventoryStatus?: string;
   managementNotes?: string | null;
   description?: string | null;
   installedAt?: string | null;

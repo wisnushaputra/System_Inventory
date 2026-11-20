@@ -4,8 +4,15 @@ import { DeviceForm } from '../DeviceForm';
 
 export const instant = false;
 
-export default async function NewDevicePage() {
+export default async function NewDevicePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ siteId?: string }>;
+}) {
   await requirePermission('device.create');
+
+  const resolvedParams = searchParams ? await searchParams : {};
+  const prefillSiteId = resolvedParams.siteId ? parseInt(resolvedParams.siteId, 10) : undefined;
 
   const [categories, vendors, models, sites, rooms, racks] = await Promise.all([
     prisma.deviceCategory.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
@@ -36,6 +43,7 @@ export default async function NewDevicePage() {
       </div>
 
       <DeviceForm
+        initialData={prefillSiteId ? { siteId: prefillSiteId } : undefined}
         categories={categories}
         vendors={vendors}
         models={mappedModels}

@@ -66,12 +66,18 @@ model Site {
   longitude   Float?
   status      String   @default("active") // active, inactive, maintenance
   description String?
+  parentSiteId Int?
+  parentSite   Site?    @relation("SiteHierarchy", fields: [parentSiteId], references: [id], onDelete: SetNull)
+  childSites   Site[]   @relation("SiteHierarchy")
   rooms       Room[]
   racks       Rack[]
   devices     Device[]
   subnets     Subnet[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([parentSiteId])
+  @@index([siteType])
 }
 
 model Room {
