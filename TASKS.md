@@ -152,10 +152,14 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 10 — Dokumentasi & Sidang (paralel, final Minggu 12)
 
-- [ ] **T10.1 README** — instalasi, konfigurasi `.env`, seeding, cara menjalankan.
-- [ ] **T10.2 ERD final + daftar permission** (dokumen, bukan gambar tangan).
-- [ ] **T10.3 Buku manual pengguna** — alur tambah perangkat, relasi, ekspor.
-- [ ] **T10.4 Laporan KP + slide demo** dengan struktur: masalah → desain → demo → evaluasi KPI §2.3.
+- [x] **T10.1 README** — instalasi, konfigurasi `.env`, seeding, cara menjalankan.
+      Status: Selesai. Panduan komprehensif disusun pada `README.md` (root repositori) dan `nims/README.md`. Memuat ringkasan fitur sistem, arsitektur stack teknologi (Next.js 16, TypeScript, Tailwind CSS, PostgreSQL 18, Prisma ORM, @xyflow/react), prasyarat instalasi, konfigurasi berkas `.env`, panduan migrasi basis data & seeding akun default (`admin` & `operator`), perintah menjalankan dev & production build, struktur lengkap direktori proyek, dan daftar skrip uji otomatis (DoD lolos).
+- [x] **T10.2 ERD final + daftar permission** (dokumen, bukan gambar tangan).
+      Status: Selesai. Dokumen arsitektur data resmi disusun pada `docs/ERD_AND_PERMISSIONS.md`. Memuat diagram ERD Mermaid 17 entitas relasional lengkap dengan kardinalitas, kamus data terperinci per tabel (tipe data, foreign key, index, nullability, dan business logic), serta matriks hak akses Role-Based Access Control (RBAC) yang memetakan seluruh kode izin terhadap 5 peran utama: Admin, Network Engineer, Operator NOC, Supervisor, dan Auditor (DoD lolos).
+- [x] **T10.3 Buku manual pengguna** — alur tambah perangkat, relasi, ekspor.
+      Status: Selesai. Buku panduan operasional pengguna terstruktur disusun pada `docs/USER_MANUAL.md`. Menjelaskan alur kerja dari sudut pandang operator: masuk/keluar sistem dengan proteksi brute force, manajemen inventaris perangkat, penanganan konflik konkurensi (Optimistic Locking), generator port antarmuka massal, manajemen alokasi IPAM, pencatatan relasi jaringan beserta 3 aturan integritas, navigasi kanvas topologi graf, unggah/unduh dokumen privat, alur impor CSV massal berstandar PRD §19.3, ekspor CSV aman anti-formula injection, serta penelusuran audit log diff (DoD lolos).
+- [x] **T10.4 Laporan KP + slide demo** dengan struktur: masalah → desain → demo → evaluasi KPI §2.3.
+      Status: Selesai. Laporan Kerja Praktik formal akademik disusun pada `docs/LAPORAN_KP.md` (Bab 1 Pendahuluan Masalah, Bab 2 Desain Solusi, Bab 3 Implementasi & Uji Coba, Bab 4 Evaluasi Kuantitatif 7 KPI §2.3 & Kesimpulan). Dilengkapi slide presentasi siap tayang untuk sidang KP pada `docs/SLIDE_DEMO_SIDANG.md` sebanyak 16 slide terstruktur: Masalah Riil ISP $\to$ Desain Solusi $\to$ Demo 6 Skenario Utama $\to$ Hasil Uji Beban $\to$ Evaluasi 7 KPI PRD §2.3 (DoD lolos).
 
 ---
 
