@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { requireUser } from '@/lib/auth';
+import { requireUser, hasPermission } from '@/lib/auth';
 
 export const instant = false;
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const canViewAudit = hasPermission(user, 'audit.view');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -33,6 +34,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
               >
                 Master Data
               </Link>
+              {canViewAudit && (
+                <Link
+                  href="/audit-logs"
+                  className="text-slate-600 transition hover:text-slate-900"
+                >
+                  Audit Log
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center space-x-4 text-sm">

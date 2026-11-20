@@ -28,9 +28,10 @@ interface Props {
   sites: { id: number; name: string; siteCode: string }[];
   canCreate: boolean;
   canArchive: boolean;
+  canExport?: boolean;
 }
 
-export function DeviceListClient({ categories, vendors, sites, canArchive }: Props) {
+export function DeviceListClient({ categories, vendors, sites, canArchive, canExport = false }: Props) {
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -272,6 +273,17 @@ export function DeviceListClient({ categories, vendors, sites, canArchive }: Pro
             </select>
           </div>
         </div>
+
+        {canExport && (
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <a
+              href={`/api/export/devices?isArchived=${isArchived}${q ? `&q=${encodeURIComponent(q)}` : ''}${categoryId ? `&categoryId=${categoryId}` : ''}${vendorId ? `&vendorId=${vendorId}` : ''}${siteId ? `&siteId=${siteId}` : ''}${inventoryStatus ? `&inventoryStatus=${inventoryStatus}` : ''}`}
+              className="inline-flex items-center rounded border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+            >
+              📥 Ekspor Hasil Filter Ini ke CSV
+            </a>
+          </div>
+        )}
       </div>
 
       {errorMsg && (

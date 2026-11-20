@@ -107,11 +107,14 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 6 — Dashboard, Audit UI, Ekspor (Minggu 9)
 
-- [ ] **T6.1 Dashboard** — kartu total perangkat/site/subnet/relasi, per kategori, per status,
+- [x] **T6.1 Dashboard** — kartu total perangkat/site/subnet/relasi, per kategori, per status,
       daftar data belum lengkap. DoD: angka cocok dengan hasil query manual.
-- [ ] **T6.2 Halaman audit log** — filter user/objek/aksi/tanggal, read-only.
-- [ ] **T6.3 Ekspor CSV/XLSX sesuai filter + RBAC.**
+      Status: Endpoint `/api/dashboard/stats` dan UI `/dashboard` (`DashboardClient.tsx`) selesai. Menampilkan kartu total perangkat aktif vs terarsip, total site, total subnet IPAM, dan total koneksi aktif. Menyajikan visual breakdown per kategori, per status inventaris, dan per site. Dilengkapi audit kelengkapan data (*data completeness*) yang mendeteksi perangkat tanpa Management IP, tanpa Serial Number, tanpa Model, atau tanpa Rak/Ruang beserta tautan cepat untuk melengkapinya. Terbukti via tes integrasi: angka statistik kartu cocok 100% dengan hasil query database manual (DoD lolos).
+- [x] **T6.2 Halaman audit log** — filter user/objek/aksi/tanggal, read-only.
+      Status: Endpoint `/api/audit-logs` dan antarmuka read-only `/audit-logs` (`AuditLogClient.tsx`) selesai. Mendukung filter pengguna, tipe entitas, aksi, dan rentang tanggal dengan pagination serta peninjau *diff* (`beforeData` vs `afterData`). RBAC ditegakkan dengan izin `audit.view`: Operator NOC yang mencoba mengakses terbukti ditolak HTTP 403 dan insiden dicatat di audit log (`action='ACCESS_DENIED'`) (DoD lolos). Menu navigasi atas hanya muncul bagi pengguna berwenang.
+- [x] **T6.3 Ekspor CSV/XLSX sesuai filter + RBAC.**
       DoD: AC §6.6 lolos; sel diawali `= + - @` di-escape; aktivitas ekspor tercatat.
+      Status: Endpoint `/api/export/devices` dan `/api/export/audit-logs` selesai beserta tombol ekspor di UI inventaris dan audit log. RBAC ditegakkan via izin `report.export`: Operator NOC terbukti ditolak HTTP 403. Proteksi Formula Injection (CWE-1236) terbukti aktif: sel yang diawali karakter formula (`=`, `+`, `-`, `@`, `\t`, `\r`) otomatis di-*escape* dengan tanda kutip tunggal (`'`). Berkas diekspor dengan UTF-8 Byte Order Mark (BOM: `0xEF, 0xBB, 0xBF`) untuk kompatibilitas spreadsheet. Setiap aktivitas ekspor terbukti tercatat di `audit_logs` dengan `action='EXPORT'` memuat filter dan jumlah baris (DoD lolos).
 
 ## Fase 7 — Topologi (Minggu 10, P1 — kerjakan hanya jika Fase 0–6 hijau)
 

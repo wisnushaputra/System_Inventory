@@ -15,6 +15,7 @@ export default async function DevicesPage() {
 
   const canCreate = hasPermission(user, 'device.create');
   const canArchive = hasPermission(user, 'device.archive');
+  const canExport = hasPermission(user, 'report.export');
 
   return (
     <div className="space-y-6">
@@ -25,14 +26,24 @@ export default async function DevicesPage() {
             Daftar perangkat jaringan aktif dan terarsip dengan filter kategori, vendor, dan lokasi.
           </p>
         </div>
-        {canCreate && (
-          <a
-            href="/devices/new"
-            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-          >
-            + Tambah Perangkat
-          </a>
-        )}
+        <div className="flex items-center space-x-2">
+          {canExport && (
+            <a
+              href="/api/export/devices"
+              className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              📥 Ekspor CSV
+            </a>
+          )}
+          {canCreate && (
+            <a
+              href="/devices/new"
+              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            >
+              + Tambah Perangkat
+            </a>
+          )}
+        </div>
       </div>
 
       <DeviceListClient
@@ -41,6 +52,7 @@ export default async function DevicesPage() {
         sites={sites}
         canCreate={canCreate}
         canArchive={canArchive}
+        canExport={canExport}
       />
     </div>
   );
