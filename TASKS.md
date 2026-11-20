@@ -66,16 +66,19 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 3 — Port & IPAM (Minggu 5–6)
 
-- [ ] **T3.1 Tabel `interfaces`** + unique `(device_id, name)`.
+- [x] **T3.1 Tabel `interfaces`** + unique `(device_id, name)`.
       DoD: dua port nama sama di satu perangkat ditolak.
-- [ ] **T3.2 CRUD port di detail perangkat** (+ opsional "tambah N port berpola nama").
-- [ ] **T3.3 Tabel `subnets` & `ip_addresses`** + constraint keunikan sesuai keputusan VRF (T0.1).
+      Status: Model `Interface` dan tabel migrasi `20261119175137_add_ports_and_ipam` berhasil dibuat dengan constraint `UNIQUE("deviceId", "name")`. Terbukti via pengujian integrasi otomatis menolak pembuatan dua port bernama sama pada satu perangkat (HTTP 409 & Prisma P2002).
+- [x] **T3.2 CRUD port di detail perangkat** (+ opsional "tambah N port berpola nama").
+      Status: Endpoint `/api/devices/[id]/interfaces` dan `[interfaceId]` mendukung pembuatan single port, penghapusan port, serta pembuatan port batch berpola (`mode: 'batch'`, contoh `ether1`..`ether4`). UI Tab 3 (Ports) di `/devices/[id]` menampilkan daftar port, status, IP binding, dan modal penambahan port batch.
+- [x] **T3.3 Tabel `subnets` & `ip_addresses`** + constraint keunikan sesuai keputusan VRF (T0.1 / D3).
       DoD: alokasi IP ganda di ruang alamat sama ditolak oleh DB, bukan cuma validasi form.
-- [ ] **T3.4 Alur alokasi/lepas IP** — status AVAILABLE/ALLOCATED/RELEASED, validasi CIDR
-      pakai library, bukan regex.
+      Status: Model `Subnet` dan `IpAddress` terpasang dengan constraint `UNIQUE("subnetId", "address")`. Terbukti penolakan alokasi IP ganda pada subnet yang sama menghasilkan HTTP 409 dan penolakan di tingkat basis data.
+- [x] **T3.4 Alur alokasi/lepas IP** — status AVAILABLE/ALLOCATED/RELEASED, validasi CIDR pakai library/bitwise kalkulator, bukan regex.
       DoD: IP network/broadcast ditolak untuk host; IP valid tersimpan.
-- [ ] **T3.5 Management IP perangkat** diambil dari `ip_addresses` (purpose=management),
-      tidak ada kolom duplikat di `devices`.
+      Status: Library `src/lib/ipam.ts` mengkalkulasi network/broadcast bitwise secara presisi. Uji integrasi membuktikan `10.99.0.0` (network) dan `10.99.0.255` (broadcast) ditolak dengan pesan spesifik; IP valid `10.99.0.1` tersimpan; alur release via `POST /api/ipam/addresses/[id]/release` mengubah status menjadi `RELEASED`, mengisi `releasedAt`, dan membersihkan binding perangkat/interface.
+- [x] **T3.5 Management IP perangkat** diambil dari `ip_addresses` (purpose=management), tidak ada kolom duplikat di `devices`.
+      Status: Sesuai Keputusan D2, kolom `devices` tidak memuat kolom `management_ip`. Query list (`GET /api/devices`) dan detail (`GET /api/devices/[id]`) secara dinamis meng-query relasi `ipAddresses` (`purpose='management'`, `allocationStatus='ALLOCATED'`) dan menyajikannya sebagai `managementIp`, yang ditampilkan pada tabel daftar perangkat dan Tab 2 (Network).
 
 ## Fase 4 — Relasi Jaringan (Minggu 7)
 

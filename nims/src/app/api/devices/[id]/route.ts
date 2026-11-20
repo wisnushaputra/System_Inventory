@@ -42,10 +42,34 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
       rack: true,
       creator: { select: { id: true, name: true, username: true } },
       updater: { select: { id: true, name: true, username: true } },
+      interfaces: {
+        include: {
+          ipAddresses: {
+            include: { subnet: true },
+          },
+        },
+        orderBy: { name: 'asc' },
+      },
+      ipAddresses: {
+        include: {
+          subnet: true,
+          interface: { select: { id: true, name: true } },
+        },
+        orderBy: { address: 'asc' },
+      },
     },
   });
 
   if (!device) return NextResponse.json({ message: 'Perangkat tidak ditemukan' }, { status: 404 });
+
+  const managementIpObj = device.ipAddresses.find(
+    (ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED'
+  );
+
+  const formattedDevice = {
+    ...device,
+    managementIp: managementIpObj?.address ?? null,
+  };
 
   // Ambil histori audit log khusus untuk perangkat ini
   const history = await prisma.auditLog.findMany({
@@ -55,7 +79,7 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
     take: 50,
   });
 
-  return NextResponse.json({ data: device, history });
+  return NextResponse.json({ data: formattedDevice, history });
 }
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {

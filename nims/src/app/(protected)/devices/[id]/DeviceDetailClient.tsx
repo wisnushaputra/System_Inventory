@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 
 interface AuditItem {
@@ -10,6 +10,46 @@ interface AuditItem {
   user: { name: string; username: string } | null;
   beforeData: any;
   afterData: any;
+}
+
+interface SubnetRef { id: number; name: string; cidr: string; }
+interface DeviceRef { id: number; hostname: string; deviceCode: string; }
+interface InterfaceRef { id: number; name: string; label: string | null; }
+
+interface IpAddressItem {
+  id: number;
+  address: string;
+  ipVersion: string;
+  subnetId: number;
+  subnet: SubnetRef;
+  deviceId: number | null;
+  interfaceId: number | null;
+  interface?: InterfaceRef | null;
+  purpose: string;
+  allocationStatus: string;
+  hostname: string | null;
+  description: string | null;
+  assignedAt: string | null;
+  releasedAt: string | null;
+}
+
+interface InterfaceItem {
+  id: number;
+  deviceId: number;
+  name: string;
+  label: string | null;
+  interfaceType: string;
+  mediaType: string | null;
+  speedMbps: number | null;
+  adminStatus: string;
+  operStatus: string;
+  macAddress: string | null;
+  portMode: string | null;
+  vlanId: number | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  ipAddresses: IpAddressItem[];
 }
 
 interface DeviceDetailProps {
@@ -29,6 +69,7 @@ interface DeviceDetailProps {
     archiveReason: string | null;
     createdAt: string;
     updatedAt: string;
+    managementIp?: string | null;
     category: { id: number; name: string; code: string };
     vendor: { id: number; name: string; website: string | null };
     model: { id: number; modelName: string; modelCode: string } | null;
@@ -37,11 +78,25 @@ interface DeviceDetailProps {
     rack: { id: number; name: string; unitCapacity: number } | null;
     creator: { id: number; name: string; username: string } | null;
     updater: { id: number; name: string; username: string } | null;
+    interfaces?: InterfaceItem[];
+    ipAddresses?: IpAddressItem[];
   };
   history: AuditItem[];
   canEdit: boolean;
   canArchive: boolean;
 }
+
+const STATUS_COLOR: Record<string, string> = {
+  enabled: 'bg-emerald-100 text-emerald-800',
+  disabled: 'bg-slate-200 text-slate-500',
+  up: 'bg-green-100 text-green-800',
+  down: 'bg-rose-100 text-rose-800',
+  unknown: 'bg-slate-100 text-slate-500',
+  ALLOCATED: 'bg-blue-100 text-blue-800',
+  RELEASED: 'bg-slate-200 text-slate-500',
+  RESERVED: 'bg-amber-100 text-amber-800',
+  AVAILABLE: 'bg-emerald-100 text-emerald-800',
+};
 
 export function DeviceDetailClient({ device, history, canEdit, canArchive }: DeviceDetailProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'>('overview');
@@ -49,20 +104,98 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
   const [archiveReason, setArchiveReason] = useState('');
   const [loadingArchive, setLoadingArchive] = useState(false);
 
+  // Ports state
+  const [interfaces, setInterfaces] = useState<InterfaceItem[]>(device.interfaces || []);
+  const [portsLoading, setPortsLoading] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchPrefix, setBatchPrefix] = useState('ether');
+  const [batchStart, setBatchStart] = useState(1);
+  const [batchCount, setBatchCount] = useState(8);
+  const [batchType, setBatchType] = useState('ethernet');
+  const [batchSpeed, setBatchSpeed] = useState<string>('1000');
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+
+  // Network / IP state
+  const [ipAddresses, setIpAddresses] = useState<IpAddressItem[]>(device.ipAddresses || []);
+  const [ipLoading, setIpLoading] = useState(false);
+
+  const refreshInterfaces = useCallback(async () => {
+    setPortsLoading(true);
+    try {
+      const res = await fetch(`/api/devices/${device.id}/interfaces`);
+      const data = await res.json();
+      if (res.ok) setInterfaces(data.data || []);
+    } finally {
+      setPortsLoading(false);
+    }
+  }, [device.id]);
+
+  const refreshIpAddresses = useCallback(async () => {
+    setIpLoading(true);
+    try {
+      const res = await fetch(`/api/ipam/addresses?deviceId=${device.id}`);
+      const data = await res.json();
+      if (res.ok) setIpAddresses(data.data || []);
+    } finally {
+      setIpLoading(false);
+    }
+  }, [device.id]);
+
+  useEffect(() => {
+    if (activeTab === 'ports' && interfaces.length === 0) refreshInterfaces();
+    if (activeTab === 'network' && ipAddresses.length === 0) refreshIpAddresses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleDeleteInterface = async (iface: InterfaceItem) => {
+    if (!confirm(`Hapus port "${iface.name}"? IP address yang terhubung akan dilepas dari port ini.`)) return;
+    const res = await fetch(`/api/devices/${device.id}/interfaces/${iface.id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.message); return; }
+    await refreshInterfaces();
+  };
+
+  const handleBatchCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBatchSubmitting(true);
+    try {
+      const res = await fetch(`/api/devices/${device.id}/interfaces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'batch',
+          prefix: batchPrefix,
+          startNumber: batchStart,
+          count: batchCount,
+          interfaceType: batchType,
+          speedMbps: parseInt(batchSpeed, 10) || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.message); return; }
+      setShowBatchModal(false);
+      await refreshInterfaces();
+    } finally {
+      setBatchSubmitting(false);
+    }
+  };
+
+  const handleReleaseIp = async (ipId: number, address: string) => {
+    if (!confirm(`Lepas alokasi IP ${address}? Status akan berubah menjadi RELEASED.`)) return;
+    const res = await fetch(`/api/ipam/addresses/${ipId}/release`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.message); return; }
+    await refreshIpAddresses();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ACTIVE':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'PLANNED':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'MAINTENANCE':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'RETIRED':
-        return 'bg-slate-200 text-slate-800 border-slate-300';
-      case 'LOST':
-        return 'bg-rose-100 text-rose-800 border-rose-200';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'ACTIVE': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'PLANNED': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'MAINTENANCE': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'RETIRED': return 'bg-slate-200 text-slate-800 border-slate-300';
+      case 'LOST': return 'bg-rose-100 text-rose-800 border-rose-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
@@ -321,21 +454,81 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
           <div className="flex items-center justify-between border-b pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Alokasi IP Address & Subnet (IPAM)</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Alokasi IP Address (IPAM)</h3>
               <p className="text-slate-500 mt-0.5">
-                Sesuai Keputusan D2, Management IP perangkat tidak diduplikasi di tabel devices dan dikelola dari modul IPAM.
+                Management IP diambil dari tabel <code className="bg-slate-100 px-1 rounded">ip_addresses</code> (purpose=management, status=ALLOCATED) tanpa kolom duplikat di tabel devices.
               </p>
             </div>
-            <span className="rounded bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-indigo-700 font-medium">
-              Fase 3: IPAM
-            </span>
+            <button
+              onClick={refreshIpAddresses}
+              className="rounded border border-slate-300 px-3 py-1 text-slate-600 hover:bg-slate-50"
+            >
+              Refresh
+            </button>
           </div>
-          <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            <p className="font-semibold">Modul IPAM & Alokasi IP dijadwalkan pada Fase 3 (Minggu 5–6)</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Alamat IP manajemen, loopback, gateway, dan subnet akan terhubung otomatis ke interface perangkat ini.
-            </p>
-          </div>
+
+          {device.managementIp && (
+            <div className="flex items-center gap-2 rounded-md bg-indigo-50 border border-indigo-200 px-4 py-2">
+              <span className="text-indigo-500 font-bold text-xs">Management IP:</span>
+              <span className="font-mono font-bold text-indigo-700 text-sm">{device.managementIp}</span>
+            </div>
+          )}
+
+          {ipLoading ? (
+            <div className="text-center py-8 text-slate-400">Memuat alokasi IP...</div>
+          ) : ipAddresses.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
+              <p className="font-medium">Belum ada IP address yang dialokasikan ke perangkat ini.</p>
+              <p className="text-[11px] mt-1">Alokasikan IP melalui halaman IPAM Subnets.</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-left">
+                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+                  <tr>
+                    <th className="px-3 py-2">Alamat IP</th>
+                    <th className="px-3 py-2">Subnet</th>
+                    <th className="px-3 py-2">Interface</th>
+                    <th className="px-3 py-2">Purpose</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Hostname</th>
+                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ipAddresses.map((ip) => (
+                    <tr key={ip.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono font-bold text-indigo-700">{ip.address}</td>
+                      <td className="px-3 py-2 font-mono text-slate-600 text-[11px]">
+                        <span>{ip.subnet.name}</span>
+                        <span className="block text-slate-400">{ip.subnet.cidr}</span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{ip.interface?.name || <span className="italic text-slate-300">-</span>}</td>
+                      <td className="px-3 py-2 uppercase font-mono text-slate-500 text-[11px]">{ip.purpose}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLOR[ip.allocationStatus] || 'bg-slate-100 text-slate-700'}`}>
+                          {ip.allocationStatus}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{ip.hostname || '-'}</td>
+                      {canEdit && (
+                        <td className="px-3 py-2 text-right">
+                          {ip.allocationStatus === 'ALLOCATED' && (
+                            <button
+                              onClick={() => handleReleaseIp(ip.id, ip.address)}
+                              className="text-rose-600 hover:text-rose-800 font-medium"
+                            >
+                              Lepas
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -344,21 +537,187 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
           <div className="flex items-center justify-between border-b pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Daftar Interface & Port</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Daftar Interface & Port ({interfaces.length})</h3>
               <p className="text-slate-500 mt-0.5">
-                Daftar port fisik/logis (Ethernet, SFP, GPON, dsb) untuk perangkat {device.hostname}.
+                Port fisik/logis untuk perangkat {device.hostname}. Nama port unik per perangkat (constraint DB).
               </p>
             </div>
-            <span className="rounded bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-indigo-700 font-medium">
-              Fase 3: Port & IPAM
-            </span>
+            {canEdit && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBatchModal(true)}
+                  className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                >
+                  + Batch Port
+                </button>
+              </div>
+            )}
           </div>
-          <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            <p className="font-semibold">Manajemen Interface & Port dijadwalkan pada Fase 3</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Tabel interfaces dengan constraint unik (device_id, name) dan status link administratif.
-            </p>
-          </div>
+
+          {portsLoading ? (
+            <div className="text-center py-8 text-slate-400">Memuat daftar port...</div>
+          ) : interfaces.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
+              <p className="font-medium">Belum ada port/interface yang terdaftar.</p>
+              {canEdit && (
+                <button
+                  onClick={() => setShowBatchModal(true)}
+                  className="mt-3 rounded bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                >
+                  Tambah Port Berpola
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-left">
+                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+                  <tr>
+                    <th className="px-3 py-2">Nama Port</th>
+                    <th className="px-3 py-2">Tipe</th>
+                    <th className="px-3 py-2">Kecepatan</th>
+                    <th className="px-3 py-2">Admin Status</th>
+                    <th className="px-3 py-2">IP Address</th>
+                    <th className="px-3 py-2">Deskripsi</th>
+                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {interfaces.map((iface) => (
+                    <tr key={iface.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono font-bold text-slate-800">{iface.name}</td>
+                      <td className="px-3 py-2 uppercase text-slate-500 font-mono text-[11px]">{iface.interfaceType}</td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {iface.speedMbps ? `${iface.speedMbps >= 1000 ? `${iface.speedMbps / 1000}G` : `${iface.speedMbps}M`}` : '-'}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLOR[iface.adminStatus] || 'bg-slate-100 text-slate-700'}`}>
+                          {iface.adminStatus}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-indigo-700">
+                        {iface.ipAddresses.length > 0
+                          ? iface.ipAddresses.map((ip) => (
+                              <span key={ip.id} className="block text-[11px]">{ip.address}</span>
+                            ))
+                          : <span className="italic text-slate-300">-</span>}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 italic">{iface.description || '-'}</td>
+                      {canEdit && (
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            onClick={() => handleDeleteInterface(iface)}
+                            className="text-rose-500 hover:text-rose-700 font-medium"
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Batch Modal */}
+          {showBatchModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 space-y-4">
+                <h3 className="font-semibold text-slate-800 text-sm">Tambah Port Berpola</h3>
+                <form onSubmit={handleBatchCreate} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-500 mb-1">Prefix nama port</label>
+                    <input
+                      type="text"
+                      value={batchPrefix}
+                      onChange={(e) => setBatchPrefix(e.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono"
+                      placeholder="ether"
+                      required
+                    />
+                    <p className="text-slate-400 mt-1">Contoh: prefix=ether, start=1, count=8 menghasilkan ether1...ether8</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-500 mb-1">Mulai dari</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={batchStart}
+                        onChange={(e) => setBatchStart(parseInt(e.target.value, 10))}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 mb-1">Jumlah port</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={96}
+                        value={batchCount}
+                        onChange={(e) => setBatchCount(parseInt(e.target.value, 10))}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-500 mb-1">Tipe interface</label>
+                      <select
+                        value={batchType}
+                        onChange={(e) => setBatchType(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      >
+                        <option value="ethernet">Ethernet</option>
+                        <option value="sfp">SFP</option>
+                        <option value="sfp_plus">SFP+</option>
+                        <option value="pon">PON/GPON</option>
+                        <option value="management">Management</option>
+                        <option value="loopback">Loopback</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 mb-1">Kecepatan (Mbps)</label>
+                      <select
+                        value={batchSpeed}
+                        onChange={(e) => setBatchSpeed(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      >
+                        <option value="">-</option>
+                        <option value="10">10 Mbps</option>
+                        <option value="100">100 Mbps</option>
+                        <option value="1000">1 Gbps</option>
+                        <option value="10000">10 Gbps</option>
+                        <option value="25000">25 Gbps</option>
+                        <option value="40000">40 Gbps</option>
+                        <option value="100000">100 Gbps</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="rounded bg-slate-50 border border-slate-200 px-3 py-2 font-mono text-indigo-700 text-[11px]">
+                    Preview: {batchPrefix}{batchStart} ... {batchPrefix}{batchStart + batchCount - 1} ({batchCount} port)
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowBatchModal(false)}
+                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={batchSubmitting}
+                      className="flex-1 rounded bg-indigo-600 py-1.5 font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                    >
+                      {batchSubmitting ? 'Menambahkan...' : `Tambah ${batchCount} Port`}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

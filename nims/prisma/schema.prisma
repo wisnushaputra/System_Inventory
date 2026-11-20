@@ -65,6 +65,7 @@ model Site {
   rooms       Room[]
   racks       Rack[]
   devices     Device[]
+  subnets     Subnet[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -168,6 +169,8 @@ model Device {
   updater         User?          @relation("UpdatedDevices", fields: [updatedBy], references: [id], onDelete: SetNull)
   archivedAt      DateTime?
   archiveReason   String?
+  interfaces      Interface[]
+  ipAddresses     IpAddress[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -191,4 +194,76 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+}
+
+model Interface {
+  id            Int         @id @default(autoincrement())
+  deviceId      Int
+  device        Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  name          String
+  label         String?
+  interfaceType String      @default("ethernet") // ethernet, sfp, sfp_plus, qsfp, pon, wireless, loopback, vlan, lag, management, other
+  mediaType     String?     // copper, fiber_single_mode, fiber_multi_mode, wireless
+  speedMbps     Int?        // 10, 100, 1000, 10000, 25000, 40000, 100000
+  adminStatus   String      @default("enabled") // enabled, disabled
+  operStatus    String      @default("unknown") // up, down, testing, unknown
+  macAddress    String?
+  portMode      String?     // access, trunk, routed
+  vlanId        Int?
+  description   String?
+  ipAddresses   IpAddress[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([deviceId, name])
+  @@index([deviceId])
+  @@index([name])
+}
+
+model Subnet {
+  id          Int         @id @default(autoincrement())
+  name        String
+  cidr        String      @unique
+  ipVersion   String      @default("IPv4") // IPv4, IPv6
+  siteId      Int?
+  site        Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  gatewayIp   String?
+  vlanId      Int?
+  purpose     String      @default("management") // management, loopback, point_to_point, access, server, public, other
+  status      String      @default("active") // active, reserved, deprecated
+  description String?
+  ipAddresses IpAddress[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([cidr])
+  @@index([siteId])
+}
+
+model IpAddress {
+  id               Int        @id @default(autoincrement())
+  address          String
+  ipVersion        String     @default("IPv4") // IPv4, IPv6
+  subnetId         Int
+  subnet           Subnet     @relation(fields: [subnetId], references: [id], onDelete: Restrict)
+  deviceId         Int?
+  device           Device?    @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  interfaceId      Int?
+  interface        Interface? @relation(fields: [interfaceId], references: [id], onDelete: SetNull)
+  purpose          String     @default("management") // management, loopback, point_to_point, nat, carp, other
+  allocationStatus String     @default("ALLOCATED") // AVAILABLE, ALLOCATED, RESERVED, RELEASED
+  hostname         String?
+  assignedAt       DateTime?
+  releasedAt       DateTime?
+  description      String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([subnetId, address])
+  @@index([address])
+  @@index([deviceId])
+  @@index([interfaceId])
+  @@index([subnetId])
+  @@index([allocationStatus])
+  @@index([purpose])
 }

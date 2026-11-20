@@ -9,6 +9,7 @@ interface DeviceItem {
   hostname: string;
   serialNumber: string | null;
   networkRole: string | null;
+  managementIp?: string | null;
   inventoryStatus: string;
   archivedAt: string | null;
   archiveReason: string | null;
@@ -286,6 +287,7 @@ export function DeviceListClient({ categories, vendors, sites, canArchive }: Pro
             <tr>
               <th className="px-4 py-3">Device Code</th>
               <th className="px-4 py-3">Hostname</th>
+              <th className="px-4 py-3">Management IP</th>
               <th className="px-4 py-3">Kategori</th>
               <th className="px-4 py-3">Vendor / Model</th>
               <th className="px-4 py-3">Site & Posisi</th>
@@ -298,13 +300,13 @@ export function DeviceListClient({ categories, vendors, sites, canArchive }: Pro
           <tbody className="divide-y divide-slate-200 text-slate-800">
             {loading ? (
               <tr>
-                <td colSpan={isArchived ? 9 : 8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={isArchived ? 10 : 9} className="px-4 py-8 text-center text-slate-400">
                   Memuat data perangkat...
                 </td>
               </tr>
             ) : devices.length === 0 ? (
               <tr>
-                <td colSpan={isArchived ? 9 : 8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={isArchived ? 10 : 9} className="px-4 py-8 text-center text-slate-400">
                   {isArchived ? 'Tidak ada perangkat yang diarsipkan.' : 'Belum ada perangkat terdaftar.'}
                 </td>
               </tr>
@@ -324,6 +326,13 @@ export function DeviceListClient({ categories, vendors, sites, canArchive }: Pro
                       <span className="block text-[11px] text-slate-400 font-normal">
                         SN: {d.serialNumber}
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-indigo-700">
+                    {d.managementIp ? (
+                      <span className="bg-indigo-50 rounded px-1.5 py-0.5">{d.managementIp}</span>
+                    ) : (
+                      <span className="text-slate-300 italic">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{d.category.name}</td>

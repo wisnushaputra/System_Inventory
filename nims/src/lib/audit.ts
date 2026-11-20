@@ -1,7 +1,27 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'ARCHIVE' | 'RESTORE' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'ARCHIVE'
+  | 'RESTORE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'EXPORT'
+  | 'CREATE_INTERFACE'
+  | 'UPDATE_INTERFACE'
+  | 'DELETE_INTERFACE'
+  | 'BATCH_CREATE_INTERFACES'
+  | 'CREATE_SUBNET'
+  | 'UPDATE_SUBNET'
+  | 'DELETE_SUBNET'
+  | 'ALLOCATE_IP'
+  | 'REALLOCATE_IP'
+  | 'RELEASE_IP'
+  | 'UPDATE_IP'
+  | 'DELETE_IP';
 
 export interface AuditLogOptions {
   userId?: number | null;

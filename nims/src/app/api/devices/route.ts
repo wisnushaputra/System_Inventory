@@ -55,6 +55,7 @@ export async function GET(req: Request) {
               { model: { modelName: { contains: q, mode: 'insensitive' } } },
               { model: { modelCode: { contains: q, mode: 'insensitive' } } },
               { site: { name: { contains: q, mode: 'insensitive' } } },
+              { ipAddresses: { some: { address: { contains: q, mode: 'insensitive' } } } },
             ],
           }
         : {},
@@ -77,6 +78,10 @@ export async function GET(req: Request) {
         site: true,
         room: true,
         rack: true,
+        ipAddresses: {
+          where: { purpose: 'management', allocationStatus: 'ALLOCATED' },
+          select: { address: true, id: true, subnetId: true },
+        },
       },
       orderBy: { [sortBy]: sortOrder },
       skip,
@@ -84,8 +89,13 @@ export async function GET(req: Request) {
     }),
   ]);
 
+  const formattedDevices = devices.map((d) => ({
+    ...d,
+    managementIp: d.ipAddresses[0]?.address ?? null,
+  }));
+
   return NextResponse.json({
-    data: devices,
+    data: formattedDevices,
     pagination: {
       total,
       page,
