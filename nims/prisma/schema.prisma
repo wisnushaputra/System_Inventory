@@ -48,6 +48,7 @@ model User {
   updatedDevices Device[]   @relation("UpdatedDevices")
   createdConnections NetworkConnection[] @relation("CreatedConnections")
   updatedConnections NetworkConnection[] @relation("UpdatedConnections")
+  uploadedDocuments Document[] @relation("UploadedDocuments")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -173,6 +174,7 @@ model Device {
   archiveReason   String?
   interfaces      Interface[]
   ipAddresses     IpAddress[]
+  documents       Document[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -298,5 +300,31 @@ model NetworkConnection {
   @@index([endpointBInterfaceId])
   @@index([relationType])
   @@index([status])
+  @@index([archivedAt])
+}
+
+model Document {
+  id               Int       @id @default(autoincrement())
+  deviceId         Int?
+  device           Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  storageKey       String    @unique
+  originalFilename String
+  mimeType         String
+  fileSize         Int
+  checksum         String    // SHA-256
+  category         String    @default("other") // photo, topology_diagram, config_backup, warranty, manual, contract, other
+  sensitivityLevel String    @default("internal") // public, internal, confidential, restricted
+  description      String?
+  uploadedBy       Int?
+  uploader         User?     @relation("UploadedDocuments", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  uploadedAt       DateTime  @default(now())
+  archivedAt       DateTime?
+  archiveReason    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([deviceId])
+  @@index([category])
+  @@index([checksum])
   @@index([archivedAt])
 }

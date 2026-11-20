@@ -23,6 +23,11 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
       rack: true,
       creator: { select: { id: true, name: true, username: true } },
       updater: { select: { id: true, name: true, username: true } },
+      documents: {
+        where: { archivedAt: null },
+        include: { uploader: { select: { id: true, name: true, username: true } } },
+        orderBy: { uploadedAt: 'desc' },
+      },
       interfaces: {
         include: {
           ipAddresses: {
@@ -75,6 +80,7 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
 
   const canEdit = hasPermission(user, 'device.update') || hasPermission(user, 'interface.manage');
   const canArchive = hasPermission(user, 'device.archive');
+  const canUploadDoc = hasPermission(user, 'document.upload');
 
   const managementIpObj = device.ipAddresses.find(
     (ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED'
@@ -97,6 +103,19 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
         assignedAt: ip.assignedAt ? ip.assignedAt.toISOString() : null,
         releasedAt: ip.releasedAt ? ip.releasedAt.toISOString() : null,
       })),
+    })),
+    documents: device.documents.map((d) => ({
+      id: d.id,
+      deviceId: d.deviceId,
+      originalFilename: d.originalFilename,
+      mimeType: d.mimeType,
+      fileSize: d.fileSize,
+      checksum: d.checksum,
+      category: d.category,
+      sensitivityLevel: d.sensitivityLevel,
+      description: d.description,
+      uploadedAt: d.uploadedAt.toISOString(),
+      uploader: d.uploader,
     })),
     ipAddresses: device.ipAddresses.map((ip) => ({
       ...ip,
@@ -144,6 +163,7 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
       history={serializedHistory}
       canEdit={canEdit}
       canArchive={canArchive}
+      canUploadDoc={canUploadDoc}
     />
   );
 }

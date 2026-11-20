@@ -95,12 +95,15 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 5 — Dokumen (Minggu 8)
 
-- [ ] **T5.1 Upload & metadata** — private storage, nama file acak, checksum, ukuran maksimum.
+- [x] **T5.1 Upload & metadata** — private storage, nama file acak, checksum, ukuran maksimum.
       DoD: file tidak bisa diakses lewat URL langsung.
-- [ ] **T5.2 Validasi unggahan** — whitelist MIME/ekstensi, tolak `.svg`/`.html`,
+      Status: Model `Document` & migrasi `20261120143214_add_documents` dibuat. Berkas fisik disimpan di direktori privat `nims/storage/documents/` (di luar `public/`), nama berkas acak UUID v4 (`<uuid>.<ext>`), checksum SHA-256 dihitung secara akurat, batas ukuran 15 MB ditegakkan. Upaya akses URL langsung (`/storage/documents/<key>` atau `/storage/<key>`) terbukti mengembalikan HTTP 404 (DoD lolos).
+- [x] **T5.2 Validasi unggahan** — whitelist MIME/ekstensi, tolak `.svg`/`.html`,
       sajikan unduhan dengan `Content-Disposition: attachment` + `nosniff`.
-- [ ] **T5.3 Akses berizin** — endpoint unduh cek permission; list dokumen di detail perangkat.
+      Status: Whitelist format & MIME (PDF, PNG, JPG, WEBP, TXT, LOG, CFG, CSV, XLSX, DOCX, ZIP) ditegakkan. Upaya upload berkas berbahaya `.svg` dan `.html` terbukti ditolak HTTP 400. Berkas yang diunduh via `/api/documents/[id]/download` menyertakan header `Content-Disposition: attachment; filename="<original>"` dan `X-Content-Type-Options: nosniff`.
+- [x] **T5.3 Akses berizin** — endpoint unduh cek permission; list dokumen di detail perangkat.
       DoD: user tanpa izin → 403, tercatat di audit.
+      Status: Endpoint unduh cek izin `document.view`; endpoint unggah cek `document.upload`. Percobaan unggah dokumen oleh Operator NOC (tidak memiliki `document.upload`) terbukti menghasilkan HTTP 403 dan insiden penolakan dicatat di `audit_logs` (`action='ACCESS_DENIED'`). Aktivitas pengunggahan dicatat sebagai `UPLOAD_DOCUMENT` dan pengunduhan dicatat sebagai `DOWNLOAD_DOCUMENT`. Tab 5 pada detail perangkat menampilkan tabel dokumen lampiran lengkap dengan aksi unduh dan hapus berizin.
 
 ## Fase 6 — Dashboard, Audit UI, Ekspor (Minggu 9)
 

@@ -86,6 +86,20 @@ interface ConnectionItem {
   createdAt: string;
 }
 
+interface DocumentItem {
+  id: number;
+  deviceId: number | null;
+  originalFilename: string;
+  mimeType: string;
+  fileSize: number;
+  checksum: string;
+  category: string;
+  sensitivityLevel: string;
+  description: string | null;
+  uploadedAt: string;
+  uploader: { id: number; name: string; username: string } | null;
+}
+
 interface DeviceDetailProps {
   device: {
     id: number;
@@ -115,10 +129,12 @@ interface DeviceDetailProps {
     interfaces?: InterfaceItem[];
     ipAddresses?: IpAddressItem[];
     connections?: ConnectionItem[];
+    documents?: DocumentItem[];
   };
   history: AuditItem[];
   canEdit: boolean;
   canArchive: boolean;
+  canUploadDoc?: boolean;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -133,7 +149,26 @@ const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: 'bg-emerald-100 text-emerald-800',
 };
 
-export function DeviceDetailClient({ device, history, canEdit, canArchive }: DeviceDetailProps) {
+const DOC_CATEGORY_MAP: Record<string, string> = {
+  photo: 'Foto Perangkat',
+  topology_diagram: 'Diagram Topologi',
+  config_backup: 'Backup Konfigurasi',
+  warranty: 'Garansi & Servis',
+  manual: 'Buku Manual',
+  contract: 'Kontrak / SLA',
+  other: 'Lainnya',
+};
+
+function formatBytes(bytes: number, decimals = 1) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+export function DeviceDetailClient({ device, history, canEdit, canArchive, canUploadDoc = false }: DeviceDetailProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'>('overview');
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
@@ -175,6 +210,18 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
   const [archiveConnTarget, setArchiveConnTarget] = useState<ConnectionItem | null>(null);
   const [archiveConnReason, setArchiveConnReason] = useState('');
   const [archiveConnLoading, setArchiveConnLoading] = useState(false);
+
+  // Documents state (Fase 5)
+  const [documents, setDocuments] = useState<DocumentItem[]>(device.documents || []);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] = useState('photo');
+  const [uploadSensitivity, setUploadSensitivity] = useState('internal');
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [uploadSubmitting, setUploadSubmitting] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [docDeletingId, setDocDeletingId] = useState<number | null>(null);
 
   const refreshInterfaces = useCallback(async () => {
     setPortsLoading(true);
@@ -220,12 +267,76 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
     }
   }, [device.id]);
 
+  const refreshDocuments = useCallback(async () => {
+    setDocsLoading(true);
+    try {
+      const res = await fetch(`/api/documents?deviceId=${device.id}`);
+      const data = await res.json();
+      if (res.ok) setDocuments(data.documents || []);
+    } finally {
+      setDocsLoading(false);
+    }
+  }, [device.id]);
+
   useEffect(() => {
     if (activeTab === 'ports' && interfaces.length === 0) refreshInterfaces();
     if (activeTab === 'network' && ipAddresses.length === 0) refreshIpAddresses();
     if (activeTab === 'connections') refreshConnections();
+    if (activeTab === 'documents') refreshDocuments();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, connIsArchived]);
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setUploadError('Pilih berkas file yang akan diunggah.');
+      return;
+    }
+    setUploadSubmitting(true);
+    setUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('deviceId', device.id.toString());
+      formData.append('category', uploadCategory);
+      formData.append('sensitivityLevel', uploadSensitivity);
+      if (uploadDescription) formData.append('description', uploadDescription);
+
+      const res = await fetch('/api/documents', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadError(data.error || 'Gagal mengunggah dokumen.');
+        return;
+      }
+      setShowUploadModal(false);
+      setUploadFile(null);
+      setUploadDescription('');
+      refreshDocuments();
+    } catch (err: any) {
+      setUploadError(err.message || 'Terjadi kesalahan sistem saat unggah.');
+    } finally {
+      setUploadSubmitting(false);
+    }
+  };
+
+  const handleDeleteDocument = async (id: number) => {
+    if (!confirm('Yakin ingin menghapus dokumen ini secara permanen dari server?')) return;
+    setDocDeletingId(id);
+    try {
+      const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        refreshDocuments();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Gagal menghapus dokumen.');
+      }
+    } finally {
+      setDocDeletingId(null);
+    }
+  };
 
   const handleOpenAddConnection = () => {
     setShowConnModal(true);
@@ -499,7 +610,7 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          5. Documents (Lampiran)
+          5. Documents ({documents.length})
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -1267,23 +1378,134 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
       {/* TAB 5: DOCUMENTS */}
       {activeTab === 'documents' && (
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex items-center justify-between border-b pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-800">Dokumen & Lampiran Perangkat</h3>
               <p className="text-slate-500 mt-0.5">
-                Foto perangkat, diagram rak, konfigurasi, dan dokumen garansi.
+                Penyimpanan privat untuk foto fisik, diagram topologi, backup konfigurasi, dan dokumen garansi.
               </p>
             </div>
-            <span className="rounded bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-indigo-700 font-medium">
-              Fase 5: Dokumen
-            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={refreshDocuments}
+                disabled={docsLoading}
+                className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {docsLoading ? 'Memuat...' : 'Muat Ulang'}
+              </button>
+              {canUploadDoc && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadError('');
+                    setUploadFile(null);
+                    setShowUploadModal(true);
+                  }}
+                  className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+                >
+                  + Unggah Dokumen
+                </button>
+              )}
+            </div>
           </div>
-          <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            <p className="font-semibold">Penyimpanan Dokumen Privat Berizin dijadwalkan pada Fase 5</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Validasi MIME aman, proteksi direktori langsung, dan audit unduhan.
-            </p>
-          </div>
+
+          {documents.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500 space-y-2">
+              <p className="font-semibold text-slate-700">Belum ada dokumen yang diunggah untuk perangkat ini.</p>
+              <p className="text-[11px] text-slate-400">
+                Dokumen disimpan di direktori privat yang aman dengan checksum SHA-256 dan akses berizin (RBAC).
+              </p>
+              {canUploadDoc && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadError('');
+                      setUploadFile(null);
+                      setShowUploadModal(true);
+                    }}
+                    className="inline-flex items-center rounded bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    Unggah Dokumen Pertama
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left divide-y divide-slate-200">
+                <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-3">Nama Berkas</th>
+                    <th className="py-2.5 px-3">Kategori</th>
+                    <th className="py-2.5 px-3">Ukuran</th>
+                    <th className="py-2.5 px-3">Checksum (SHA-256)</th>
+                    <th className="py-2.5 px-3">Pengunggah & Waktu</th>
+                    <th className="py-2.5 px-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                  {documents.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-slate-50/70">
+                      <td className="py-2.5 px-3 font-medium text-slate-900 font-sans">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-slate-400">📄</span>
+                          <span className="truncate max-w-xs" title={doc.originalFilename}>
+                            {doc.originalFilename}
+                          </span>
+                        </div>
+                        {doc.description && (
+                          <p className="text-[10px] text-slate-500 font-sans mt-0.5 ml-6">
+                            {doc.description}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-sans">
+                        <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                          {DOC_CATEGORY_MAP[doc.category] || doc.category}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600">
+                        {formatBytes(doc.fileSize)}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-500">
+                        <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title={doc.checksum}>
+                          {doc.checksum.substring(0, 10)}...{doc.checksum.substring(doc.checksum.length - 6)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-sans text-slate-600">
+                        <div>{doc.uploader ? doc.uploader.name : 'System'}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {new Date(doc.uploadedAt).toLocaleString('id-ID')}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-sans space-x-1.5">
+                        <a
+                          href={`/api/documents/${doc.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block rounded bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+                        >
+                          ⬇ Unduh
+                        </a>
+                        {(canUploadDoc || canEdit) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            disabled={docDeletingId === doc.id}
+                            className="inline-block rounded bg-rose-50 border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                          >
+                            {docDeletingId === doc.id ? '...' : 'Hapus'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1366,6 +1588,119 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
                   className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
                 >
                   {loadingArchive ? 'Mengarsipkan...' : 'Konfirmasi Arsipkan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Document Modal (Fase 5) */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                Unggah Dokumen Perangkat: {device.hostname}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            {uploadError && (
+              <div className="rounded border border-rose-200 bg-rose-50 p-3 text-rose-800">
+                {uploadError}
+              </div>
+            )}
+
+            <form onSubmit={handleUploadDocument} className="space-y-3.5">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Pilih Berkas File <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  required
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setUploadFile(f);
+                  }}
+                  className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                />
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Didukung: PDF, PNG, JPG, WEBP, TXT, LOG, CFG, CSV, XLSX, DOCX, ZIP (Maks. 15 MB). Format executable, SVG, dan HTML dilarang.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    Kategori Dokumen <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
+                    className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="photo">Foto Fisik Perangkat</option>
+                    <option value="topology_diagram">Diagram Topologi</option>
+                    <option value="config_backup">Backup Konfigurasi</option>
+                    <option value="warranty">Garansi & Servis</option>
+                    <option value="manual">Buku Manual</option>
+                    <option value="contract">Kontrak Vendor / SLA</option>
+                    <option value="other">Lainnya</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    Tingkat Sensitivitas
+                  </label>
+                  <select
+                    value={uploadSensitivity}
+                    onChange={(e) => setUploadSensitivity(e.target.value)}
+                    className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="internal">Internal (Default)</option>
+                    <option value="confidential">Confidential (Rahasia)</option>
+                    <option value="restricted">Restricted (Sangat Terbatas)</option>
+                    <option value="public">Public</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Keterangan / Catatan Dokumen (Opsional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Contoh: Backup startup-config sebelum upgrade firmware versi 7.12"
+                  value={uploadDescription}
+                  onChange={(e) => setUploadDescription(e.target.value)}
+                  className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadSubmitting || !uploadFile}
+                  className="rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                >
+                  {uploadSubmitting ? 'Mengunggah...' : 'Unggah Sekarang'}
                 </button>
               </div>
             </form>

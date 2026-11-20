@@ -26,7 +26,12 @@ export type AuditAction =
   | 'UPDATE_CONNECTION'
   | 'ARCHIVE_CONNECTION'
   | 'RESTORE_CONNECTION'
-  | 'DELETE_CONNECTION';
+  | 'DELETE_CONNECTION'
+  | 'UPLOAD_DOCUMENT'
+  | 'DOWNLOAD_DOCUMENT'
+  | 'DELETE_DOCUMENT'
+  | 'ARCHIVE_DOCUMENT'
+  | 'ACCESS_DENIED';
 
 export interface AuditLogOptions {
   userId?: number | null;
