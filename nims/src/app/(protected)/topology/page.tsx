@@ -9,8 +9,15 @@ export default async function TopologyPage() {
 
   const [sites, categories] = await Promise.all([
     prisma.site.findMany({
-      select: { id: true, siteCode: true, name: true },
-      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        siteCode: true,
+        name: true,
+        siteType: true,
+        parentSiteId: true,
+        parentSite: { select: { id: true, siteCode: true, name: true } },
+      },
+      orderBy: { siteCode: 'asc' },
     }),
     prisma.deviceCategory.findMany({
       select: { id: true, code: true, name: true },

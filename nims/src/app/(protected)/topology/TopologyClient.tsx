@@ -22,6 +22,9 @@ interface SiteOption {
   id: number;
   siteCode: string;
   name: string;
+  siteType: string;
+  parentSiteId: number | null;
+  parentSite?: { id: number; siteCode: string; name: string } | null;
 }
 
 interface CategoryOption {
@@ -54,20 +57,21 @@ const STATUS_BADGES: Record<string, string> = {
   LOST: 'bg-rose-100 text-rose-800',
 };
 
-// Custom Node Component untuk Perangkat Jaringan (T7.1)
+// Custom Node Component untuk Perangkat Jaringan dengan Hierarki POP & Customer (T7.1)
 function DeviceCustomNode({ data, selected }: any) {
   const icon = CATEGORY_ICONS[data.categoryCode] || '📦';
   const statusColor = STATUS_BADGES[data.inventoryStatus] || 'bg-slate-100 text-slate-700';
 
   return (
     <div
-      className={`rounded-lg border bg-white p-3 shadow-md w-56 text-xs transition cursor-pointer ${
+      className={`rounded-lg border bg-white p-3 shadow-md w-60 text-xs transition cursor-pointer ${
         selected ? 'border-indigo-600 ring-2 ring-indigo-400' : 'border-slate-200 hover:border-slate-400'
       }`}
     >
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-indigo-500" />
       <Handle type="target" position={Position.Left} className="w-2.5 h-2.5 !bg-indigo-500" />
 
+      {/* Header Node: Ikon & Hostname */}
       <div className="flex items-center space-x-2 border-b border-slate-100 pb-2">
         <span className="text-xl leading-none">{icon}</span>
         <div className="min-w-0 flex-1">
@@ -78,7 +82,23 @@ function DeviceCustomNode({ data, selected }: any) {
         </div>
       </div>
 
-      <div className="mt-2 space-y-1 text-[11px] text-slate-600">
+      {/* Badge Hierarki Lokasi */}
+      <div className="mt-2 mb-1.5">
+        {data.isPopCore ? (
+          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20 truncate max-w-full">
+            📍 Core POP: {data.siteCode}
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20 truncate max-w-full"
+            title={`${data.parentPop?.name || 'POP'} > ${data.site}`}
+          >
+            👥 Pelanggan: {data.siteCode}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1 text-[11px] text-slate-600">
         <div className="flex justify-between">
           <span className="text-slate-400">IP Mgmt:</span>
           <span className="font-mono font-medium text-slate-800">
@@ -105,7 +125,8 @@ export function TopologyClient({ sites, categories }: Props) {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Filter states
+  // Hierarchical Filter states
+  const [popId, setPopId] = useState('');
   const [siteId, setSiteId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [relationType, setRelationType] = useState('');
@@ -121,19 +142,58 @@ export function TopologyClient({ sites, categories }: Props) {
 
   const nodeTypes = useMemo(() => ({ deviceNode: DeviceCustomNode }), []);
 
+  // Filter master site: Pisahkan POP induk vs Customer site
+  const pops = useMemo(() => {
+    return sites.filter((s) => s.siteType === 'pop' || s.parentSiteId === null);
+  }, [sites]);
+
+  const customerSitesForPop = useMemo(() => {
+    if (!popId) return [];
+    return sites.filter((s) => s.parentSiteId === Number(popId));
+  }, [sites, popId]);
+
+  const selectedPopObj = useMemo(() => {
+    if (!popId) return null;
+    return pops.find((p) => p.id === Number(popId)) || null;
+  }, [pops, popId]);
+
+  const selectedCustomerObj = useMemo(() => {
+    if (!siteId || siteId === 'pop_internal') return null;
+    return sites.find((s) => s.id === Number(siteId)) || null;
+  }, [sites, siteId]);
+
   const fetchTopology = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const params = new URLSearchParams();
-      if (siteId) params.set('siteId', siteId);
+
+      if (siteId === 'pop_internal') {
+        params.set('popId', popId);
+        params.set('isInternalOnly', 'true');
+      } else if (siteId) {
+        params.set('siteId', siteId);
+      } else if (popId) {
+        params.set('popId', popId);
+      }
+
       if (categoryId) params.set('categoryId', categoryId);
       if (relationType) params.set('relationType', relationType);
       if (medium) params.set('medium', medium);
 
+      // Tentukan scope layout tersimpan
+      let scope = 'default';
+      if (siteId && siteId !== 'pop_internal') {
+        scope = `site-${siteId}`;
+      } else if (siteId === 'pop_internal') {
+        scope = `pop-${popId}-internal`;
+      } else if (popId) {
+        scope = `pop-${popId}`;
+      }
+
       const [resTopo, resLayout] = await Promise.all([
         fetch(`/api/topology?${params.toString()}`),
-        fetch(`/api/topology/layout?scope=${siteId ? `site-${siteId}` : 'default'}`),
+        fetch(`/api/topology/layout?scope=${scope}`),
       ]);
 
       if (!resTopo.ok) throw new Error('Gagal memuat data relasi topologi');
@@ -159,7 +219,7 @@ export function TopologyClient({ sites, categories }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [siteId, categoryId, relationType, medium, setNodes, setEdges]);
+  }, [popId, siteId, categoryId, relationType, medium, setNodes, setEdges]);
 
   useEffect(() => {
     fetchTopology();
@@ -187,11 +247,20 @@ export function TopologyClient({ sites, categories }: Props) {
         positions[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) };
       });
 
+      let scope = 'default';
+      if (siteId && siteId !== 'pop_internal') {
+        scope = `site-${siteId}`;
+      } else if (siteId === 'pop_internal') {
+        scope = `pop-${popId}-internal`;
+      } else if (popId) {
+        scope = `pop-${popId}`;
+      }
+
       const res = await fetch('/api/topology/layout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: window.location.origin },
         body: JSON.stringify({
-          scope: siteId ? `site-${siteId}` : 'default',
+          scope,
           positions,
         }),
       });
@@ -222,31 +291,114 @@ export function TopologyClient({ sites, categories }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Filter Bar Topologi */}
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm text-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block font-medium text-slate-600 mb-1">Filter Site / POP</label>
-            <select
-              value={siteId}
-              onChange={(e) => setSiteId(e.target.value)}
-              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500"
+      {/* Breadcrumb Topologi Hierarkis */}
+      <nav aria-label="Hierarki Topologi" className="flex items-center flex-wrap gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+        <button
+          type="button"
+          onClick={() => {
+            setPopId('');
+            setSiteId('');
+          }}
+          className={`font-medium transition-colors ${
+            !popId ? 'text-indigo-600 font-semibold' : 'text-slate-600 hover:text-indigo-600'
+          }`}
+        >
+          🏢 Seluruh POP (Topologi Global)
+        </button>
+
+        {selectedPopObj && (
+          <>
+            <span className="text-slate-400 font-bold">/</span>
+            <button
+              type="button"
+              onClick={() => setSiteId('')}
+              className={`font-medium transition-colors ${
+                popId && !siteId ? 'text-indigo-600 font-semibold' : 'text-slate-600 hover:text-indigo-600'
+              }`}
             >
-              <option value="">Semua Site / POP</option>
-              {sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.siteCode} - {s.name}
+              📍 {selectedPopObj.name} ({selectedPopObj.siteCode})
+            </button>
+          </>
+        )}
+
+        {siteId === 'pop_internal' && (
+          <>
+            <span className="text-slate-400 font-bold">/</span>
+            <span className="text-indigo-900 font-semibold bg-indigo-100/70 px-2 py-0.5 rounded text-[11px]">
+              ⚙️ Perangkat Internal POP
+            </span>
+          </>
+        )}
+
+        {selectedCustomerObj && (
+          <>
+            <span className="text-slate-400 font-bold">/</span>
+            <span className="text-indigo-900 font-semibold bg-indigo-100/70 px-2 py-0.5 rounded text-[11px]">
+              👥 {selectedCustomerObj.name} ({selectedCustomerObj.siteCode})
+            </span>
+          </>
+        )}
+      </nav>
+
+      {/* Filter Bar Topologi Berjenjang */}
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* Dropdown 1: Pilih POP Induk */}
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">
+              1. Pilih POP Induk
+            </label>
+            <select
+              value={popId}
+              onChange={(e) => {
+                setPopId(e.target.value);
+                setSiteId('');
+              }}
+              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="">Semua POP (Global)</option>
+              {pops.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.siteCode} - {p.name}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Dropdown 2: Lingkup / Site Pelanggan */}
           <div>
-            <label className="block font-medium text-slate-600 mb-1">Kategori Perangkat</label>
+            <label className="block font-medium text-slate-700 mb-1">
+              2. Site Pelanggan / Lingkup
+            </label>
+            <select
+              disabled={!popId}
+              value={siteId}
+              onChange={(e) => setSiteId(e.target.value)}
+              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              {!popId ? (
+                <option value="">Pilih POP terlebih dahulu</option>
+              ) : (
+                <>
+                  <option value="">Semua Site di POP ini (Backbone & Pelanggan)</option>
+                  <option value="pop_internal">⚙️ Perangkat Internal POP Saja</option>
+                  {customerSitesForPop.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      👥 {c.siteCode} - {c.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* Dropdown 3: Kategori Perangkat */}
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Kategori Perangkat</label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500"
+              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
             >
               <option value="">Semua Kategori</option>
               {categories.map((c) => (
@@ -257,12 +409,13 @@ export function TopologyClient({ sites, categories }: Props) {
             </select>
           </div>
 
+          {/* Dropdown 4: Tipe Relasi */}
           <div>
-            <label className="block font-medium text-slate-600 mb-1">Tipe Relasi</label>
+            <label className="block font-medium text-slate-700 mb-1">Tipe Relasi</label>
             <select
               value={relationType}
               onChange={(e) => setRelationType(e.target.value)}
-              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500"
+              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
             >
               <option value="">Semua Tipe Relasi</option>
               <option value="physical">Physical (Kabel Fisik)</option>
@@ -272,12 +425,13 @@ export function TopologyClient({ sites, categories }: Props) {
             </select>
           </div>
 
+          {/* Dropdown 5: Media Transmisi */}
           <div>
-            <label className="block font-medium text-slate-600 mb-1">Media Transmisi</label>
+            <label className="block font-medium text-slate-700 mb-1">Media Transmisi</label>
             <select
               value={medium}
               onChange={(e) => setMedium(e.target.value)}
-              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500"
+              className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
             >
               <option value="">Semua Media</option>
               <option value="fiber">Fiber Optic</option>
@@ -329,8 +483,11 @@ export function TopologyClient({ sites, categories }: Props) {
       {/* Kanvas React Flow & Sidebar Detail */}
       <div className="relative h-[620px] w-full rounded-lg border border-slate-200 bg-slate-50 overflow-hidden shadow-sm">
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-xs text-xs font-semibold text-slate-600">
-            Memuat diagram topologi...
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-r-transparent" />
+              <p className="mt-2 text-xs font-semibold text-slate-700">Memuat visualisasi topologi...</p>
+            </div>
           </div>
         )}
 
@@ -344,43 +501,43 @@ export function TopologyClient({ sites, categories }: Props) {
           nodeTypes={nodeTypes}
           fitView
           minZoom={0.2}
-          maxZoom={2.5}
+          maxZoom={2}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
-          <Background color="#cbd5e1" gap={20} size={1} variant={BackgroundVariant.Dots} />
-          <Controls position="bottom-right" className="!bg-white !border-slate-200 shadow-md" />
+          <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
+          <Controls position="bottom-left" />
           <MiniMap
-            position="bottom-left"
-            className="!bg-white !border-slate-200 shadow-md rounded-md overflow-hidden"
-            zoomable
-            pannable
+            position="bottom-right"
+            nodeColor={(node: any) => {
+              if (node.data?.isPopCore) return '#9333ea';
+              return '#4f46e5';
+            }}
+            className="!border !border-slate-200 !bg-white/90 !shadow-sm"
           />
 
-          {/* Legenda Topologi (DoD T7.1) */}
-          <Panel position="top-left" className="!m-3">
-            <div className="rounded-lg border border-slate-200 bg-white/95 backdrop-blur-xs p-3 shadow-md text-[11px] space-y-2 max-w-xs">
-              <div className="font-bold text-slate-800 border-b pb-1">Legenda Relasi Topologi</div>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="w-5 h-0.5 bg-indigo-600 inline-block" />
-                  <span className="text-slate-600">Physical (Kabel Fisik)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-5 h-0.5 border-b-2 border-dashed border-sky-500 inline-block" />
-                  <span className="text-slate-600">Logical (Virtual / Tunnel)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-5 h-0.5 bg-indigo-600 inline-block ring-2 ring-indigo-200" />
-                  <span className="text-slate-600">Fiber Optic (Animasi)</span>
-                </div>
-              </div>
-              <div className="border-t pt-1.5 text-[10px] text-slate-400">
-                ⚠️ <em>Status node merupakan status inventaris administratif. Tidak ada label status up/down real-time (DoD T7.1).</em>
-              </div>
+          {/* Legenda Topologi Jaringan (DoD T7.1) */}
+          <Panel position="top-left" className="bg-white/90 backdrop-blur-sm p-2.5 rounded-lg border border-slate-200 shadow-sm text-[11px] space-y-1.5">
+            <div className="font-bold text-slate-800 text-xs border-b pb-1">Legenda Relasi</div>
+            <div className="flex items-center space-x-2">
+              <span className="w-5 h-0.5 bg-indigo-600 inline-block" />
+              <span className="text-slate-600">Physical (Kabel Fisik)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-5 h-0.5 border-t border-dashed border-sky-500 inline-block" />
+              <span className="text-slate-600">Logical (VLAN / Tunnel)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-purple-600 inline-block" />
+              <span className="text-slate-600">Core POP Induk</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
+              <span className="text-slate-600">Customer CPE Pelanggan</span>
             </div>
           </Panel>
         </ReactFlow>
 
-        {/* Panel Detail Node (Klik Node → Detail Perangkat) (DoD T7.1) */}
+        {/* Panel Detail Node (Klik Node → Detail Perangkat Lengkap) (DoD T7.1) */}
         {selectedNode && (
           <div className="absolute top-3 right-3 z-20 w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-xl text-xs space-y-3">
             <div className="flex items-center justify-between border-b pb-2">
@@ -402,20 +559,39 @@ export function TopologyClient({ sites, categories }: Props) {
 
             <dl className="divide-y divide-slate-100 text-[11px]">
               <div className="py-1.5 flex justify-between">
+                <dt className="text-slate-400">Lingkup Lokasi</dt>
+                <dd className="font-semibold text-slate-800">
+                  {selectedNode.isPopCore ? 'Infrastruktur Core POP' : 'Site Pelanggan / Customer'}
+                </dd>
+              </div>
+              <div className="py-1.5 flex justify-between">
+                <dt className="text-slate-400">POP Induk</dt>
+                <dd className="font-medium text-slate-700">
+                  {selectedNode.parentPop?.name || selectedNode.site} ({selectedNode.parentPop?.siteCode || selectedNode.siteCode})
+                </dd>
+              </div>
+              {!selectedNode.isPopCore && (
+                <div className="py-1.5 flex justify-between">
+                  <dt className="text-slate-400">Nama Pelanggan</dt>
+                  <dd className="font-medium text-slate-700">
+                    {selectedNode.site} ({selectedNode.siteCode})
+                  </dd>
+                </div>
+              )}
+              <div className="py-1.5 flex justify-between">
                 <dt className="text-slate-400">Kategori</dt>
                 <dd className="font-medium text-slate-700">{selectedNode.category}</dd>
               </div>
               <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Vendor / Model</dt>
-                <dd className="text-slate-700">{selectedNode.vendor} {selectedNode.model ? `(${selectedNode.model})` : ''}</dd>
+                <dt className="text-slate-400">Vendor & Model</dt>
+                <dd className="font-medium text-slate-700 text-right">
+                  <div>{selectedNode.vendor}</div>
+                  <div className="text-[10px] text-slate-400">{selectedNode.model || '-'}</div>
+                </dd>
               </div>
               <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Management IP</dt>
-                <dd className="font-mono font-bold text-indigo-700">{selectedNode.managementIp || '-'}</dd>
-              </div>
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Lokasi / Site</dt>
-                <dd className="font-medium text-slate-700">{selectedNode.siteCode} - {selectedNode.site}</dd>
+                <dt className="text-slate-400">IP Manajemen</dt>
+                <dd className="font-mono font-bold text-slate-800">{selectedNode.managementIp || 'Belum diatur'}</dd>
               </div>
               <div className="py-1.5 flex justify-between">
                 <dt className="text-slate-400">Role Jaringan</dt>
@@ -483,22 +659,18 @@ export function TopologyClient({ sites, categories }: Props) {
               </div>
               <div className="py-1 flex justify-between">
                 <dt className="text-slate-400">Media Transmisi</dt>
-                <dd className="font-medium text-slate-700 uppercase">{selectedEdge.medium || 'Unknown'}</dd>
+                <dd className="font-medium text-slate-700 capitalize">{selectedEdge.medium || 'Unknown'}</dd>
               </div>
               <div className="py-1 flex justify-between">
                 <dt className="text-slate-400">Kapasitas Link</dt>
-                <dd className="font-mono font-medium text-slate-700">
-                  {selectedEdge.capacityMbps ? `${selectedEdge.capacityMbps} Mbps` : '-'}
+                <dd className="font-medium text-slate-700">
+                  {selectedEdge.capacityMbps ? `${selectedEdge.capacityMbps} Mbps` : 'Tidak dicatat'}
                 </dd>
-              </div>
-              <div className="py-1 flex justify-between">
-                <dt className="text-slate-400">Status Dokumentasi</dt>
-                <dd className="font-medium text-slate-700 uppercase">{selectedEdge.status || 'Documented'}</dd>
               </div>
               {selectedEdge.label && (
                 <div className="py-1 flex justify-between">
-                  <dt className="text-slate-400">Label / Tag</dt>
-                  <dd className="text-slate-700 italic">{selectedEdge.label}</dd>
+                  <dt className="text-slate-400">Label Link</dt>
+                  <dd className="font-medium text-slate-700">{selectedEdge.label}</dd>
                 </div>
               )}
             </dl>

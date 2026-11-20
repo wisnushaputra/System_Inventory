@@ -152,13 +152,19 @@ Sistem menerapkan 3 aturan validasi ketat:
 
 Buka menu **"Topologi"** (`/topology`) untuk melihat representasi grafis jaringan.
 
-### 7.1 Fitur Kanvas React Flow
+### 7.1 Fitur Kanvas React Flow & Filter Berjenjang Hierarki
+- **Filter Berjenjang (Hierarki POP & Pelanggan):**
+  1. **Pilih POP Induk:** Menampilkan seluruh perangkat yang terhubung dalam satu area Point of Presence, menghubungkan perangkat core POP dengan seluruh customer site di bawahnya.
+  2. **Site Pelanggan / Lingkup:** Setelah POP dipilih, operator dapat mempersempit lingkup ke *"Infrastruktur Internal POP Saja"* atau spesifik ke salah satu *"Site Pelanggan"* tertentu (misal: PT Telkom Dago Hub).
+- **Breadcrumb Navigasi:** Jalur di atas kanvas (`Seluruh POP / [Nama POP] / [Nama Customer]`) memudahkan operator melompat antartingkat hierarki dalam satu klik.
+- **Node Perangkat dengan Badge Hierarki:**
+  - Node di kanvas secara otomatis menampilkan badge pembeda: ungu untuk `[Core POP Induk]` dan biru untuk `[Customer Pelanggan]`.
 - **Navigasi Kanvas:** Gunakan roda mouse (*scroll*) untuk memperbesar/memperkecil (*zoom*), atau klik dan tahan kanvas untuk menggeser area pandang (*pan*).
-- **Inspeksi Node Perangkat:** Klik salah satu kotak perangkat (node) untuk memunculkan panel detail di sisi kanan (hostname, kode perangkat, IP manajemen, vendor/model, site, dan link navigasi cepat).
+- **Inspeksi Node Perangkat:** Klik salah satu kotak perangkat (node) untuk memunculkan panel detail di sisi kanan (hostname, kode perangkat, IP manajemen, vendor/model, POP induk, site pelanggan, dan link navigasi cepat).
 - **Inspeksi Garis Koneksi (Edge):** Klik salah satu garis koneksi untuk melihat informasi kedua port yang terhubung, media transmisi kabel, dan kapasitas link.
-- **Filter Topologi:** Gunakan filter atas untuk membatasi tampilan topologi per Site POP tertentu, per kategori perangkat, atau per jenis relasi kabel.
-- **Rapikan Posisi:** Klik tombol **"🪄 Rapikan Posisi"** untuk merapikan seluruh kotak perangkat ke dalam susunan kisi-kisi (*grid auto-layout*) secara otomatis.
-- **Simpan Posisi:** Setelah menggeser letak kotak perangkat sesuai tata letak ruangan yang Anda sukai, klik **"💾 Simpan Posisi"**. Posisi tersebut akan disimpan ke basis data khusus untuk akun Anda sendiri dan tidak merusak tampilan operator lain.
+- **Filter Kategori & Relasi:** Batasi tampilan per kategori perangkat, tipe relasi (`physical`, `logical`), atau media transmisi (`fiber`, `copper`, `wireless`).
+- **Rapikan Posisi:** Klik tombol **"🔄 Rapikan Posisi"** untuk merapikan seluruh kotak perangkat ke dalam susunan kisi-kisi (*grid auto-layout*) secara otomatis.
+- **Simpan Posisi:** Setelah menggeser letak kotak perangkat sesuai tata letak yang diinginkan, klik **"💾 Simpan Layout"**. Posisi tersebut disimpan ke basis data secara terisolasi per akun dan per scope lingkup (pop vs customer site).
 
 ---
 

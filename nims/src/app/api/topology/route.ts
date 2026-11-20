@@ -7,7 +7,9 @@ export async function GET(req: Request) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(req.url);
+  const popId = url.searchParams.get('popId');
   const siteId = url.searchParams.get('siteId');
+  const isInternalOnly = url.searchParams.get('isInternalOnly') === 'true';
   const categoryId = url.searchParams.get('categoryId');
   const relationType = url.searchParams.get('relationType');
   const medium = url.searchParams.get('medium');
@@ -20,6 +22,19 @@ export async function GET(req: Request) {
   if (siteId) {
     const sid = parseInt(siteId, 10);
     if (!isNaN(sid)) deviceWhere.siteId = sid;
+  } else if (popId) {
+    const pid = parseInt(popId, 10);
+    if (!isNaN(pid)) {
+      if (isInternalOnly) {
+        deviceWhere.siteId = pid;
+      } else {
+        // Ambil perangkat yang langsung di POP tersebut ATAU di customer sites di bawah POP tersebut
+        deviceWhere.OR = [
+          { siteId: pid },
+          { site: { parentSiteId: pid } },
+        ];
+      }
+    }
   }
 
   if (categoryId) {
@@ -34,7 +49,18 @@ export async function GET(req: Request) {
       category: { select: { id: true, code: true, name: true } },
       vendor: { select: { id: true, name: true } },
       model: { select: { id: true, modelName: true, modelCode: true } },
-      site: { select: { id: true, siteCode: true, name: true } },
+      site: {
+        select: {
+          id: true,
+          siteCode: true,
+          name: true,
+          siteType: true,
+          parentSiteId: true,
+          parentSite: {
+            select: { id: true, siteCode: true, name: true, siteType: true },
+          },
+        },
+      },
       ipAddresses: {
         where: { purpose: 'management', allocationStatus: 'ALLOCATED' },
         select: { id: true, address: true },
@@ -91,6 +117,9 @@ export async function GET(req: Request) {
     const col = index % cols;
     const row = Math.floor(index / cols);
 
+    const isPopCore = dev.site.siteType === 'pop' || dev.site.parentSiteId === null;
+    const parentPop = dev.site.parentSite ?? (isPopCore ? { id: dev.site.id, siteCode: dev.site.siteCode, name: dev.site.name } : null);
+
     return {
       id: dev.id.toString(),
       type: 'deviceNode',
@@ -105,6 +134,9 @@ export async function GET(req: Request) {
         model: dev.model ? `${dev.model.modelName} (${dev.model.modelCode})` : null,
         site: dev.site.name,
         siteCode: dev.site.siteCode,
+        siteType: dev.site.siteType,
+        parentPop,
+        isPopCore,
         managementIp: dev.ipAddresses[0]?.address || null,
         inventoryStatus: dev.inventoryStatus,
         networkRole: dev.networkRole,
