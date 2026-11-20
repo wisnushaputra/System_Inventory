@@ -43,12 +43,35 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
 
   if (!device) notFound();
 
-  const history = await prisma.auditLog.findMany({
-    where: { entityType: 'Device', entityId: id },
-    include: { user: { select: { name: true, username: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+  const [history, connections] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: { entityType: 'Device', entityId: id },
+      include: { user: { select: { name: true, username: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+    prisma.networkConnection.findMany({
+      where: {
+        OR: [
+          { endpointAInterface: { deviceId: id } },
+          { endpointBInterface: { deviceId: id } },
+        ],
+      },
+      include: {
+        endpointAInterface: {
+          include: {
+            device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
+          },
+        },
+        endpointBInterface: {
+          include: {
+            device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
 
   const canEdit = hasPermission(user, 'device.update') || hasPermission(user, 'interface.manage');
   const canArchive = hasPermission(user, 'device.archive');
@@ -79,6 +102,30 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
       ...ip,
       assignedAt: ip.assignedAt ? ip.assignedAt.toISOString() : null,
       releasedAt: ip.releasedAt ? ip.releasedAt.toISOString() : null,
+    })),
+    connections: connections.map((c) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
+      endpointAInterface: {
+        ...c.endpointAInterface,
+        device: {
+          ...c.endpointAInterface.device,
+          archivedAt: c.endpointAInterface.device.archivedAt
+            ? c.endpointAInterface.device.archivedAt.toISOString()
+            : null,
+        },
+      },
+      endpointBInterface: {
+        ...c.endpointBInterface,
+        device: {
+          ...c.endpointBInterface.device,
+          archivedAt: c.endpointBInterface.device.archivedAt
+            ? c.endpointBInterface.device.archivedAt.toISOString()
+            : null,
+        },
+      },
     })),
   };
 

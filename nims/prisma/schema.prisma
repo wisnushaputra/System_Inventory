@@ -46,6 +46,8 @@ model User {
   auditLogs      AuditLog[]
   createdDevices Device[]   @relation("CreatedDevices")
   updatedDevices Device[]   @relation("UpdatedDevices")
+  createdConnections NetworkConnection[] @relation("CreatedConnections")
+  updatedConnections NetworkConnection[] @relation("UpdatedConnections")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -212,6 +214,8 @@ model Interface {
   vlanId        Int?
   description   String?
   ipAddresses   IpAddress[]
+  connectionsAsA NetworkConnection[] @relation("EndpointA")
+  connectionsAsB NetworkConnection[] @relation("EndpointB")
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -266,4 +270,33 @@ model IpAddress {
   @@index([subnetId])
   @@index([allocationStatus])
   @@index([purpose])
+}
+
+model NetworkConnection {
+  id                   Int       @id @default(autoincrement())
+  endpointAInterfaceId Int
+  endpointAInterface   Interface @relation("EndpointA", fields: [endpointAInterfaceId], references: [id], onDelete: Cascade)
+  endpointBInterfaceId Int
+  endpointBInterface   Interface @relation("EndpointB", fields: [endpointBInterfaceId], references: [id], onDelete: Cascade)
+  relationType         String    @default("physical") // physical, logical, parent_child, service
+  medium               String?   // fiber, copper, wireless, logical, unknown
+  label                String?
+  status               String    @default("documented") // documented, under_review, archived
+  capacityMbps         Int?
+  description          String?
+  createdBy            Int?
+  creator              User?     @relation("CreatedConnections", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedBy            Int?
+  updater              User?     @relation("UpdatedConnections", fields: [updatedBy], references: [id], onDelete: SetNull)
+  archivedAt           DateTime?
+  archiveReason        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([endpointAInterfaceId, endpointBInterfaceId])
+  @@index([endpointAInterfaceId])
+  @@index([endpointBInterfaceId])
+  @@index([relationType])
+  @@index([status])
+  @@index([archivedAt])
 }

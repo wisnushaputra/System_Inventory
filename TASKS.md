@@ -82,13 +82,16 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 4 — Relasi Jaringan (Minggu 7)
 
-- [ ] **T4.1 Skema relasi** `network_connections` (+ `connection_endpoints` bila dipakai)
-      dengan: endpoint A ≠ B, anti-duplikat A-B/B-A, satu port satu koneksi fisik aktif.
+- [x] **T4.1 Skema relasi** `network_connections` (+ `connection_endpoints` bila dipakai) dengan: endpoint A ≠ B, anti-duplikat A-B/B-A, satu port satu koneksi fisik aktif.
       DoD: tiga aturan di atas terbukti ditolak oleh DB/tes.
-- [ ] **T4.2 Form tambah/edit relasi** + pilih dua port (autocomplete perangkat→port).
+      Status: Model `NetworkConnection` dan migrasi `20261120140738_add_network_connections` berhasil dibuat. Terbukti via tes integrasi: (1) Endpoint A = B ditolak HTTP 400 & CHECK constraint, (2) Duplikasi koneksi A-B dan B-A ditolak oleh level DB constraint unik `UNIQUE("endpointAInterfaceId", "endpointBInterfaceId")` dengan canonical ordering (HTTP 409), (3) Penolakan koneksi fisik aktif ganda pada satu port (HTTP 409).
+- [x] **T4.2 Form tambah/edit relasi** + pilih dua port (autocomplete perangkat→port).
       DoD: AC §6.3 lolos.
-- [ ] **T4.3 Tampilan koneksi di detail perangkat** (port ini ↔ perangkat/port lawan) + filter.
-- [ ] **T4.4 Arsip relasi** + aturan: relasi perangkat terarsip tidak muncul di tampilan default.
+      Status: Endpoint `/api/connections` dan `/api/devices/interfaces-lookup` terpasang. Form modal di Tab 4 (Connections) mendukung pemilihan port lokal, pemilihan perangkat lawan, pemilihan port lawan, pemilihan tipe relasi, media transmisi, kapasitas link, serta pencatatan audit log `CREATE_CONNECTION`.
+- [x] **T4.3 Tampilan koneksi di detail perangkat** (port ini ↔ perangkat/port lawan) + filter.
+      Status: Tab 4 (Connections) pada `/devices/[id]` menampilkan daftar relasi aktif yang menghubungkan port lokal ke perangkat dan port lawan beserta tautan navigasi, media, kapasitas, dan label. Muncul konsisten di kedua sisi perangkat yang terhubung.
+- [x] **T4.4 Arsip relasi** + aturan: relasi perangkat terarsip tidak muncul di tampilan default.
+      Status: Endpoint `/api/connections/[id]/archive` mewajibkan pengisian alasan arsip. Relasi terarsip terbukti tidak muncul pada tampilan default (`isArchived=false`), muncul jika filter arsip diaktifkan (`isArchived=true`), dapat dipulihkan via restore `/api/connections/[id]/restore`, dan relasi pada perangkat yang sedang diarsipkan otomatis disaring keluar dari tampilan default.
 
 ## Fase 5 — Dokumen (Minggu 8)
 

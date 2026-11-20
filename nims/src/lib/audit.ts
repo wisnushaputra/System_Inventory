@@ -21,7 +21,12 @@ export type AuditAction =
   | 'REALLOCATE_IP'
   | 'RELEASE_IP'
   | 'UPDATE_IP'
-  | 'DELETE_IP';
+  | 'DELETE_IP'
+  | 'CREATE_CONNECTION'
+  | 'UPDATE_CONNECTION'
+  | 'ARCHIVE_CONNECTION'
+  | 'RESTORE_CONNECTION'
+  | 'DELETE_CONNECTION';
 
 export interface AuditLogOptions {
   userId?: number | null;

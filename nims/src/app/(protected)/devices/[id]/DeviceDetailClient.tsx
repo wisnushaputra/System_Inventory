@@ -52,6 +52,40 @@ interface InterfaceItem {
   ipAddresses: IpAddressItem[];
 }
 
+interface ConnectionDeviceRef {
+  id: number;
+  hostname: string;
+  deviceCode: string;
+  archivedAt: string | null;
+}
+
+interface ConnectionItem {
+  id: number;
+  endpointAInterfaceId: number;
+  endpointAInterface: {
+    id: number;
+    name: string;
+    deviceId: number;
+    device: ConnectionDeviceRef;
+  };
+  endpointBInterfaceId: number;
+  endpointBInterface: {
+    id: number;
+    name: string;
+    deviceId: number;
+    device: ConnectionDeviceRef;
+  };
+  relationType: string;
+  medium: string | null;
+  label: string | null;
+  status: string;
+  capacityMbps: number | null;
+  description: string | null;
+  archivedAt: string | null;
+  archiveReason: string | null;
+  createdAt: string;
+}
+
 interface DeviceDetailProps {
   device: {
     id: number;
@@ -80,6 +114,7 @@ interface DeviceDetailProps {
     updater: { id: number; name: string; username: string } | null;
     interfaces?: InterfaceItem[];
     ipAddresses?: IpAddressItem[];
+    connections?: ConnectionItem[];
   };
   history: AuditItem[];
   canEdit: boolean;
@@ -119,6 +154,28 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
   const [ipAddresses, setIpAddresses] = useState<IpAddressItem[]>(device.ipAddresses || []);
   const [ipLoading, setIpLoading] = useState(false);
 
+  // Connections state
+  const [connections, setConnections] = useState<ConnectionItem[]>(device.connections || []);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
+  const [connIsArchived, setConnIsArchived] = useState(false);
+  const [showConnModal, setShowConnModal] = useState(false);
+  const [connLocalIfaceId, setConnLocalIfaceId] = useState('');
+  const [connRemoteDeviceId, setConnRemoteDeviceId] = useState('');
+  const [connRemoteIfaceId, setConnRemoteIfaceId] = useState('');
+  const [connRelationType, setConnRelationType] = useState('physical');
+  const [connMedium, setConnMedium] = useState('fiber');
+  const [connCapacity, setConnCapacity] = useState('1000');
+  const [connLabel, setConnLabel] = useState('');
+  const [connDesc, setConnDesc] = useState('');
+  const [connSubmitting, setConnSubmitting] = useState(false);
+  const [lookupDevices, setLookupDevices] = useState<any[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  // Archive connection modal state
+  const [archiveConnTarget, setArchiveConnTarget] = useState<ConnectionItem | null>(null);
+  const [archiveConnReason, setArchiveConnReason] = useState('');
+  const [archiveConnLoading, setArchiveConnLoading] = useState(false);
+
   const refreshInterfaces = useCallback(async () => {
     setPortsLoading(true);
     try {
@@ -141,11 +198,113 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
     }
   }, [device.id]);
 
+  const refreshConnections = useCallback(async () => {
+    setConnectionsLoading(true);
+    try {
+      const res = await fetch(`/api/connections?deviceId=${device.id}&isArchived=${connIsArchived}`);
+      const data = await res.json();
+      if (res.ok) setConnections(data.data || []);
+    } finally {
+      setConnectionsLoading(false);
+    }
+  }, [device.id, connIsArchived]);
+
+  const loadLookupDevices = useCallback(async () => {
+    setLookupLoading(true);
+    try {
+      const res = await fetch(`/api/devices/interfaces-lookup?excludeDeviceId=${device.id}`);
+      const data = await res.json();
+      if (res.ok) setLookupDevices(data.data || []);
+    } finally {
+      setLookupLoading(false);
+    }
+  }, [device.id]);
+
   useEffect(() => {
     if (activeTab === 'ports' && interfaces.length === 0) refreshInterfaces();
     if (activeTab === 'network' && ipAddresses.length === 0) refreshIpAddresses();
+    if (activeTab === 'connections') refreshConnections();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, connIsArchived]);
+
+  const handleOpenAddConnection = () => {
+    setShowConnModal(true);
+    loadLookupDevices();
+    if (interfaces.length > 0 && !connLocalIfaceId) {
+      setConnLocalIfaceId(interfaces[0].id.toString());
+    }
+  };
+
+  const handleCreateConnection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!connLocalIfaceId || !connRemoteIfaceId) {
+      alert('Pilih port sumber dan port tujuan');
+      return;
+    }
+    setConnSubmitting(true);
+    try {
+      const res = await fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpointAInterfaceId: parseInt(connLocalIfaceId, 10),
+          endpointBInterfaceId: parseInt(connRemoteIfaceId, 10),
+          relationType: connRelationType,
+          medium: connMedium || null,
+          capacityMbps: parseInt(connCapacity, 10) || null,
+          label: connLabel.trim() || null,
+          description: connDesc.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || 'Gagal membuat koneksi');
+        return;
+      }
+      setShowConnModal(false);
+      setConnLabel('');
+      setConnDesc('');
+      await refreshConnections();
+    } finally {
+      setConnSubmitting(false);
+    }
+  };
+
+  const handleArchiveConnectionConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!archiveConnTarget || !archiveConnReason.trim()) return;
+    setArchiveConnLoading(true);
+    try {
+      const res = await fetch(`/api/connections/${archiveConnTarget.id}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: archiveConnReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.message); return; }
+      setArchiveConnTarget(null);
+      setArchiveConnReason('');
+      await refreshConnections();
+    } finally {
+      setArchiveConnLoading(false);
+    }
+  };
+
+  const handleRestoreConnection = async (connId: number) => {
+    if (!confirm('Pulihkan relasi koneksi ini dari arsip?')) return;
+    const res = await fetch(`/api/connections/${connId}/restore`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.message); return; }
+    await refreshConnections();
+  };
+
+  const handleDeleteConnection = async (connId: number) => {
+    if (!confirm('Hapus relasi koneksi ini secara permanen?')) return;
+    const res = await fetch(`/api/connections/${connId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.message); return; }
+    await refreshConnections();
+  };
 
   const handleDeleteInterface = async (iface: InterfaceItem) => {
     if (!confirm(`Hapus port "${iface.name}"? IP address yang terhubung akan dilepas dari port ini.`)) return;
@@ -724,23 +883,384 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive }: Dev
       {/* TAB 4: CONNECTIONS */}
       {activeTab === 'connections' && (
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex items-center justify-between border-b pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Relasi Jaringan (Koneksi Antarperangkat)</h3>
+              <h3 className="text-sm font-semibold text-slate-800">
+                Relasi Jaringan Antarperangkat ({connections.length})
+              </h3>
               <p className="text-slate-500 mt-0.5">
-                Hubungan koneksi fisik/logis dari port perangkat ini ke port perangkat tetangga.
+                Koneksi fisik dan logis dari port perangkat ini ke port perangkat tetangga. Anti-duplikat dan satu port fisik per relasi aktif.
               </p>
             </div>
-            <span className="rounded bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-indigo-700 font-medium">
-              Fase 4: Relasi Jaringan
-            </span>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={connIsArchived}
+                  onChange={(e) => setConnIsArchived(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>Tampilkan Arsip</span>
+              </label>
+              {canEdit && (
+                <button
+                  onClick={handleOpenAddConnection}
+                  className="rounded bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500"
+                >
+                  + Tambah Koneksi
+                </button>
+              )}
+            </div>
           </div>
-          <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            <p className="font-semibold">Relasi Jaringan & Topologi tetangga dijadwalkan pada Fase 4</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Pencegahan konflik port ganda, tipe koneksi fisik/logis, dan visualisasi neighbor satu level.
-            </p>
-          </div>
+
+          {connectionsLoading ? (
+            <div className="text-center py-8 text-slate-400">Memuat relasi koneksi...</div>
+          ) : connections.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
+              <p className="font-medium">
+                {connIsArchived
+                  ? 'Tidak ada relasi koneksi yang diarsipkan untuk perangkat ini.'
+                  : 'Belum ada relasi koneksi aktif untuk perangkat ini.'}
+              </p>
+              {canEdit && !connIsArchived && (
+                <button
+                  onClick={handleOpenAddConnection}
+                  className="mt-3 rounded bg-indigo-600 px-4 py-1.5 font-medium text-white hover:bg-indigo-500"
+                >
+                  Hubungkan Port ke Perangkat Lain
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-left">
+                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+                  <tr>
+                    <th className="px-3 py-2">Port Lokal</th>
+                    <th className="px-3 py-2">Tipe & Media</th>
+                    <th className="px-3 py-2">Perangkat & Port Lawan</th>
+                    <th className="px-3 py-2">Kapasitas</th>
+                    <th className="px-3 py-2">Label / Catatan</th>
+                    <th className="px-3 py-2">Status</th>
+                    {connIsArchived && <th className="px-3 py-2">Alasan Arsip</th>}
+                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {connections.map((c) => {
+                    const isLocalA = c.endpointAInterface.deviceId === device.id;
+                    const localPort = isLocalA ? c.endpointAInterface : c.endpointBInterface;
+                    const remotePort = isLocalA ? c.endpointBInterface : c.endpointAInterface;
+
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 font-mono font-bold text-slate-800">
+                          {localPort.name}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="font-semibold uppercase text-slate-700 block">
+                            {c.relationType}
+                          </span>
+                          <span className="text-[11px] text-slate-500 capitalize">
+                            {c.medium || 'unknown'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Link
+                            href={`/devices/${remotePort.device.id}`}
+                            className="font-semibold text-indigo-700 hover:underline block"
+                          >
+                            {remotePort.device.hostname}
+                          </Link>
+                          <span className="font-mono text-slate-600 text-[11px]">
+                            Port: <strong>{remotePort.name}</strong> ({remotePort.device.deviceCode})
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {c.capacityMbps
+                            ? c.capacityMbps >= 1000
+                              ? `${c.capacityMbps / 1000} Gbps`
+                              : `${c.capacityMbps} Mbps`
+                            : '-'}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {c.label && <span className="font-medium block">{c.label}</span>}
+                          {c.description && <span className="text-slate-400 text-[11px] block">{c.description}</span>}
+                          {!c.label && !c.description && <span className="text-slate-300 italic">-</span>}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              c.archivedAt
+                                ? 'bg-slate-200 text-slate-700'
+                                : c.status === 'documented'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {c.archivedAt ? 'ARCHIVED' : c.status}
+                          </span>
+                        </td>
+                        {connIsArchived && (
+                          <td className="px-3 py-2 text-slate-500 italic text-[11px]">
+                            {c.archiveReason || '-'}
+                          </td>
+                        )}
+                        {canEdit && (
+                          <td className="px-3 py-2 text-right space-x-2">
+                            {!c.archivedAt ? (
+                              <button
+                                onClick={() => {
+                                  setArchiveConnTarget(c);
+                                  setArchiveConnReason('');
+                                }}
+                                className="text-amber-600 hover:text-amber-800 font-medium"
+                              >
+                                Arsipkan
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleRestoreConnection(c.id)}
+                                className="text-emerald-600 hover:text-emerald-800 font-medium"
+                              >
+                                Pulihkan
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteConnection(c.id)}
+                              className="text-rose-500 hover:text-rose-700 font-medium"
+                            >
+                              Hapus
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal Tambah Koneksi */}
+          {showConnModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="font-semibold text-slate-800 text-sm">Hubungkan Port Antarperangkat</h3>
+                  <button
+                    onClick={() => setShowConnModal(false)}
+                    className="text-slate-400 hover:text-slate-600 font-bold"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateConnection} className="space-y-3 text-xs">
+                  {/* Step 1: Port Lokal */}
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      1. Port Sumber (Perangkat: {device.hostname})
+                    </label>
+                    <select
+                      value={connLocalIfaceId}
+                      onChange={(e) => setConnLocalIfaceId(e.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      required
+                    >
+                      <option value="">Pilih Port Lokal</option>
+                      {interfaces.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name} ({i.interfaceType} - {i.speedMbps ? `${i.speedMbps}M` : 'speed ?'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Step 2: Perangkat Lawan */}
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      2. Perangkat Tujuan (Tetangga)
+                    </label>
+                    {lookupLoading ? (
+                      <p className="text-slate-400">Memuat daftar perangkat...</p>
+                    ) : (
+                      <select
+                        value={connRemoteDeviceId}
+                        onChange={(e) => {
+                          setConnRemoteDeviceId(e.target.value);
+                          setConnRemoteIfaceId('');
+                        }}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        required
+                      >
+                        <option value="">Pilih Perangkat Lawan</option>
+                        {lookupDevices.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.hostname} ({d.deviceCode}) — {d.interfaces?.length || 0} port
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Step 3: Port Lawan */}
+                  {connRemoteDeviceId && (
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">
+                        3. Port Tujuan Lawan
+                      </label>
+                      <select
+                        value={connRemoteIfaceId}
+                        onChange={(e) => setConnRemoteIfaceId(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        required
+                      >
+                        <option value="">Pilih Port Lawan</option>
+                        {lookupDevices
+                          .find((d) => d.id === parseInt(connRemoteDeviceId, 10))
+                          ?.interfaces?.map((i: any) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name} ({i.interfaceType} - {i.speedMbps ? `${i.speedMbps}M` : 'speed ?'})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Step 4: Parameter Koneksi */}
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                    <div>
+                      <label className="block text-slate-500 mb-1">Tipe Relasi</label>
+                      <select
+                        value={connRelationType}
+                        onChange={(e) => setConnRelationType(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      >
+                        <option value="physical">Physical (Fisik)</option>
+                        <option value="logical">Logical (Logis / Trunk / VLAN)</option>
+                        <option value="parent_child">Parent - Child</option>
+                        <option value="service">Service</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 mb-1">Media Transmisi</label>
+                      <select
+                        value={connMedium}
+                        onChange={(e) => setConnMedium(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      >
+                        <option value="fiber">Fiber Optic</option>
+                        <option value="copper">Copper (UTP / STP)</option>
+                        <option value="wireless">Wireless Radio</option>
+                        <option value="logical">Logical Link</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-500 mb-1">Kapasitas (Mbps)</label>
+                      <select
+                        value={connCapacity}
+                        onChange={(e) => setConnCapacity(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      >
+                        <option value="">Tidak Ditentukan</option>
+                        <option value="100">100 Mbps</option>
+                        <option value="1000">1 Gbps</option>
+                        <option value="10000">10 Gbps</option>
+                        <option value="40000">40 Gbps</option>
+                        <option value="100000">100 Gbps</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 mb-1">Label Koneksi (Opsional)</label>
+                      <input
+                        type="text"
+                        value={connLabel}
+                        onChange={(e) => setConnLabel(e.target.value)}
+                        placeholder="Uplink Core-to-Dist"
+                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-500 mb-1">Keterangan Tambahan</label>
+                    <input
+                      type="text"
+                      value={connDesc}
+                      onChange={(e) => setConnDesc(e.target.value)}
+                      placeholder="Patch cord kuning rack 2 ke rack 3"
+                      className="w-full rounded border border-slate-300 px-2 py-1.5"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowConnModal(false)}
+                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={connSubmitting || !connLocalIfaceId || !connRemoteIfaceId}
+                      className="flex-1 rounded bg-indigo-600 py-1.5 font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                    >
+                      {connSubmitting ? 'Menghubungkan...' : 'Simpan Koneksi'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Konfirmasi Arsip Koneksi */}
+          {archiveConnTarget && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 space-y-4">
+                <h3 className="font-semibold text-slate-800 text-sm">Arsipkan Relasi Koneksi</h3>
+                <p className="text-xs text-slate-500">
+                  Relasi koneksi antara port <strong>{archiveConnTarget.endpointAInterface.name}</strong> dan <strong>{archiveConnTarget.endpointBInterface.name}</strong> akan diarsipkan dan tidak muncul di diagram/tampilan default.
+                </p>
+                <form onSubmit={handleArchiveConnectionConfirm} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Alasan Pengarsipan *
+                    </label>
+                    <textarea
+                      value={archiveConnReason}
+                      onChange={(e) => setArchiveConnReason(e.target.value)}
+                      placeholder="Contoh: Kabel fisik dilepas untuk migrasi rack"
+                      rows={3}
+                      className="w-full rounded border border-slate-300 p-2"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setArchiveConnTarget(null)}
+                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={archiveConnLoading || !archiveConnReason.trim()}
+                      className="flex-1 rounded bg-amber-600 py-1.5 font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+                    >
+                      {archiveConnLoading ? 'Menyimpan...' : 'Arsipkan Koneksi'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
