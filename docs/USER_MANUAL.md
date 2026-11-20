@@ -152,19 +152,32 @@ Sistem menerapkan 3 aturan validasi ketat:
 
 Buka menu **"Topologi"** (`/topology`) untuk melihat representasi grafis jaringan.
 
-### 7.1 Fitur Kanvas React Flow & Filter Berjenjang Hierarki
-- **Filter Berjenjang (Hierarki POP & Pelanggan):**
-  1. **Pilih POP Induk:** Menampilkan seluruh perangkat yang terhubung dalam satu area Point of Presence, menghubungkan perangkat core POP dengan seluruh customer site di bawahnya.
-  2. **Site Pelanggan / Lingkup:** Setelah POP dipilih, operator dapat mempersempit lingkup ke *"Infrastruktur Internal POP Saja"* atau spesifik ke salah satu *"Site Pelanggan"* tertentu (misal: PT Telkom Dago Hub).
-- **Breadcrumb Navigasi:** Jalur di atas kanvas (`Seluruh POP / [Nama POP] / [Nama Customer]`) memudahkan operator melompat antartingkat hierarki dalam satu klik.
-- **Node Perangkat dengan Badge Hierarki:**
-  - Node di kanvas secara otomatis menampilkan badge pembeda: ungu untuk `[Core POP Induk]` dan biru untuk `[Customer Pelanggan]`.
-- **Navigasi Kanvas:** Gunakan roda mouse (*scroll*) untuk memperbesar/memperkecil (*zoom*), atau klik dan tahan kanvas untuk menggeser area pandang (*pan*).
-- **Inspeksi Node Perangkat:** Klik salah satu kotak perangkat (node) untuk memunculkan panel detail di sisi kanan (hostname, kode perangkat, IP manajemen, vendor/model, POP induk, site pelanggan, dan link navigasi cepat).
-- **Inspeksi Garis Koneksi (Edge):** Klik salah satu garis koneksi untuk melihat informasi kedua port yang terhubung, media transmisi kabel, dan kapasitas link.
-- **Filter Kategori & Relasi:** Batasi tampilan per kategori perangkat, tipe relasi (`physical`, `logical`), atau media transmisi (`fiber`, `copper`, `wireless`).
-- **Rapikan Posisi:** Klik tombol **"🔄 Rapikan Posisi"** untuk merapikan seluruh kotak perangkat ke dalam susunan kisi-kisi (*grid auto-layout*) secara otomatis.
-- **Simpan Posisi:** Setelah menggeser letak kotak perangkat sesuai tata letak yang diinginkan, klik **"💾 Simpan Layout"**. Posisi tersebut disimpan ke basis data secara terisolasi per akun dan per scope lingkup (pop vs customer site).
+### 7.1 Fitur Kanvas React Flow: Graf Bertingkat (In-Canvas Drill-Down)
+Halaman Topologi (`/topology`) menyajikan visualisasi graf interaktif multi-level:
+
+1. **Level 1 (Topologi POP Global):**
+   - Di awal, kanvas React Flow menampilkan simpul **NOC / Core Backbone Network** di bagian atas, yang bercabang dengan garis transmisi ke masing-masing simpul **POP (Point of Presence)**.
+   - Setiap kotak simpul POP menampilkan kode site, kota, jumlah customer site, dan total perangkat.
+   - **Interaksi:** Klik pada salah satu kotak simpul POP untuk melakukan *drill-down* masuk ke level berikutnya.
+
+2. **Level 2 (Topologi Site Pelanggan di bawah POP):**
+   - Kanvas memperbarui graf dengan menampilkan simpul POP Induk di atas yang bercabang ke simpul-simpul **Site Pelanggan (Customer Sites)** dan simpul infrastruktur internal POP.
+   - Setiap kotak simpul pelanggan menampilkan nama customer, kode, alamat, dan jumlah perangkat.
+   - **Interaksi:** Klik pada salah satu kotak simpul Customer Site untuk melihat topologi perangkatnya.
+
+3. **Level 3 (Topologi & Daftar Perangkat di Site Terpilih):**
+   - Kanvas menampilkan graf perangkat nyata (Router, Switch, Firewall) beserta jalur kabel dan port yang terhubung aktif di site tersebut.
+   - Tepat di bawah kanvas, disajikan tabel daftar perangkat lengkap di site tersebut beserta link detail dan tombol tambah perangkat.
+   - **Inspeksi Node:** Klik kotak perangkat untuk membuka panel spesifikasi di sisi kanan.
+   - **Inspeksi Edge:** Klik garis kabel koneksi untuk membuka panel rincian port kedua ujung (Endpoint A & Endpoint B), kapasitas link, dan media transmisi.
+
+4. **Navigasi Breadcrumb & Tombol Kembali:**
+   - Bilah navigasi di atas kanvas (`🌐 NOC Pusat / 📍 [Nama POP] / 👥 [Nama Customer]`) memudahkan operator melompat ke tingkat mana pun secara instan.
+   - Tersedia tombol cepat `← Kembali ke Level POP` dan `← Kembali ke Daftar Site Pelanggan`.
+
+5. **Mode Alternatif (Topologi Global):**
+   - Operator dapat berpindah ke tab **"🌐 Topologi Global (Semua Perangkat)"** untuk melihat seluruh perangkat dalam satu diagram datar tanpa drill-down.
+   - Fitur **"🔄 Rapikan Posisi"** dan **"💾 Simpan Layout"** tetap aktif di seluruh level dan terisolasi per akun operator.
 
 ---
 

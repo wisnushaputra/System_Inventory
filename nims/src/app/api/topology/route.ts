@@ -7,12 +7,221 @@ export async function GET(req: Request) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(req.url);
+  const level = url.searchParams.get('level');
   const popId = url.searchParams.get('popId');
   const siteId = url.searchParams.get('siteId');
   const isInternalOnly = url.searchParams.get('isInternalOnly') === 'true';
   const categoryId = url.searchParams.get('categoryId');
   const relationType = url.searchParams.get('relationType');
   const medium = url.searchParams.get('medium');
+
+  // ========================================================
+  // LEVEL 1: TOPOLOGI POP (Root Pusat -> Simpul-Simpul POP)
+  // ========================================================
+  if (level === 'pops') {
+    const pops = await prisma.site.findMany({
+      where: {
+        OR: [{ siteType: 'pop' }, { parentSiteId: null }],
+      },
+      include: {
+        childSites: {
+          select: {
+            id: true,
+            _count: { select: { devices: { where: { archivedAt: null } } } },
+          },
+        },
+        _count: {
+          select: { devices: { where: { archivedAt: null } } },
+        },
+      },
+      orderBy: { siteCode: 'asc' },
+    });
+
+    const rootX = Math.max(1, pops.length - 1) * 150 + 40;
+    const rootNode = {
+      id: 'root-noc',
+      type: 'rootNode',
+      position: { x: rootX, y: 30 },
+      data: {
+        title: 'NOC / Core Backbone Network',
+        subtitle: 'Pusat Distribusi Jaringan & Gateway Utama',
+        popCount: pops.length,
+      },
+    };
+
+    const popNodes = pops.map((pop, idx) => {
+      const directDeviceCount = pop._count.devices;
+      const childDeviceCount = pop.childSites.reduce((acc, cs) => acc + cs._count.devices, 0);
+      const totalDeviceCount = directDeviceCount + childDeviceCount;
+
+      return {
+        id: `pop-${pop.id}`,
+        type: 'popNode',
+        position: { x: idx * 300 + 40, y: 220 },
+        data: {
+          id: pop.id,
+          siteCode: pop.siteCode,
+          name: pop.name,
+          city: pop.city || 'Kota belum diatur',
+          province: pop.province || '',
+          customerSiteCount: pop.childSites.length,
+          directDeviceCount,
+          totalDeviceCount,
+          status: pop.status,
+        },
+      };
+    });
+
+    const edges = pops.map((pop) => ({
+      id: `edge-root-pop-${pop.id}`,
+      source: 'root-noc',
+      target: `pop-${pop.id}`,
+      type: 'default',
+      animated: true,
+      style: { stroke: '#4f46e5', strokeWidth: 2 },
+      data: {
+        label: 'Backbone Link',
+      },
+    }));
+
+    return NextResponse.json({
+      nodes: [rootNode, ...popNodes],
+      edges,
+      metadata: {
+        level: 'pops',
+        totalNodes: popNodes.length + 1,
+        totalEdges: edges.length,
+      },
+    });
+  }
+
+  // ========================================================
+  // LEVEL 2: TOPOLOGI SITE (POP Induk -> Simpul-Simpul Customer)
+  // ========================================================
+  if (level === 'sites') {
+    const pid = parseInt(popId || '', 10);
+    if (isNaN(pid)) {
+      return NextResponse.json({ message: 'popId diperlukan untuk level sites' }, { status: 400 });
+    }
+
+    const pop = await prisma.site.findUnique({
+      where: { id: pid },
+      include: {
+        _count: {
+          select: { devices: { where: { archivedAt: null } } },
+        },
+      },
+    });
+
+    if (!pop) {
+      return NextResponse.json({ message: 'POP tidak ditemukan' }, { status: 404 });
+    }
+
+    const childSites = await prisma.site.findMany({
+      where: { parentSiteId: pid },
+      include: {
+        _count: {
+          select: { devices: { where: { archivedAt: null } } },
+        },
+      },
+      orderBy: { siteCode: 'asc' },
+    });
+
+    const parentNode = {
+      id: `pop-parent-${pop.id}`,
+      type: 'popParentNode',
+      position: { x: Math.max(1, childSites.length) * 150 + 40, y: 30 },
+      data: {
+        id: pop.id,
+        siteCode: pop.siteCode,
+        name: pop.name,
+        city: pop.city,
+        customerSiteCount: childSites.length,
+        directDeviceCount: pop._count.devices,
+      },
+    };
+
+    const customerNodes = childSites.map((cs, idx) => ({
+      id: `site-${cs.id}`,
+      type: 'siteNode',
+      position: { x: idx * 300 + 40, y: 220 },
+      data: {
+        id: cs.id,
+        popId: pop.id,
+        siteCode: cs.siteCode,
+        name: cs.name,
+        siteType: cs.siteType,
+        address: cs.address || cs.city || 'Alamat belum diatur',
+        city: cs.city,
+        status: cs.status,
+        deviceCount: cs._count.devices,
+        popName: pop.name,
+      },
+    }));
+
+    const customerEdges = childSites.map((cs) => ({
+      id: `edge-pop-site-${cs.id}`,
+      source: `pop-parent-${pop.id}`,
+      target: `site-${cs.id}`,
+      type: 'default',
+      animated: true,
+      style: { stroke: '#0ea5e9', strokeWidth: 2 },
+      data: {
+        label: 'Akses Pelanggan',
+      },
+    }));
+
+    const allNodes: any[] = [parentNode, ...customerNodes];
+    const allEdges: any[] = [...customerEdges];
+
+    if (pop._count.devices > 0) {
+      const internalNode = {
+        id: `site-internal-${pop.id}`,
+        type: 'siteNode',
+        position: { x: childSites.length * 300 + 40, y: 220 },
+        data: {
+          id: pop.id,
+          popId: pop.id,
+          siteCode: `${pop.siteCode}-INT`,
+          name: `Infrastruktur Internal ${pop.name}`,
+          siteType: 'pop_internal',
+          isInternalOnly: true,
+          address: pop.address || pop.city || '',
+          city: pop.city,
+          status: pop.status,
+          deviceCount: pop._count.devices,
+          popName: pop.name,
+        },
+      };
+      allNodes.push(internalNode);
+      allEdges.push({
+        id: `edge-pop-internal-${pop.id}`,
+        source: `pop-parent-${pop.id}`,
+        target: `site-internal-${pop.id}`,
+        type: 'default',
+        animated: true,
+        style: { stroke: '#a855f7', strokeWidth: 2, strokeDasharray: '4,4' },
+        data: {
+          label: 'Internal POP',
+        },
+      });
+    }
+
+    return NextResponse.json({
+      nodes: allNodes,
+      edges: allEdges,
+      metadata: {
+        level: 'sites',
+        pop: { id: pop.id, siteCode: pop.siteCode, name: pop.name },
+        totalNodes: allNodes.length,
+        totalEdges: allEdges.length,
+      },
+    });
+  }
+
+  // ========================================================
+  // LEVEL 3 / DEFAULT: TOPOLOGI PERANGKAT & KONEKSI KABEL
+  // ========================================================
 
   // Query filter untuk perangkat
   const deviceWhere: any = {
@@ -187,6 +396,7 @@ export async function GET(req: Request) {
     nodes,
     edges,
     metadata: {
+      level: 'devices',
       totalNodes: nodes.length,
       totalEdges: edges.length,
     },
