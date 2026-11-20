@@ -118,9 +118,11 @@ Aturan umum sebelum mulai tiap task:
 
 ## Fase 7 — Topologi (Minggu 10, P1 — kerjakan hanya jika Fase 0–6 hijau)
 
-- [ ] **T7.1 Grafik relasi** (React Flow) dari data tersimpan, filter site/kategori/tipe relasi.
+- [x] **T7.1 Grafik relasi** (React Flow) dari data tersimpan, filter site/kategori/tipe relasi.
       DoD: klik node → detail; klik edge → dua port; ada legenda; tidak ada label up/down.
-- [ ] **T7.2 Simpan layout** per user (opsional).
+      Status: Terimplementasi menggunakan `@xyflow/react` pada `/topology` dan `/api/topology`. Terbukti via tes integrasi: (1) Klik node menampilkan detail lengkap perangkat (hostname, code, vendor/model, IP management, site, status inventaris, link navigasi detail), (2) Klik edge menampilkan detail kedua port terhubung (Endpoint A port & hostname ↔ Endpoint B port & hostname, media, kapasitas, dan tipe relasi), (3) Legenda topologi membedakan koneksi fisik vs logis serta media transmisi, (4) Terbukti 100% TIDAK ADA label status up/down/online/offline real-time pada kanvas (hanya status administratif inventaris ACTIVE/PLANNED/MAINTENANCE per PRD §5.2 & §6.4), (5) Filter site, kategori perangkat, dan tipe relasi berfungsi akurat (DoD lolos).
+- [x] **T7.2 Simpan layout** per user (opsional).
+      Status: Model `TopologyLayout` dan migrasi `20261120151405_add_topology_layouts` dibuat. Endpoint `/api/topology/layout` (GET & POST) mendukung penyimpanan posisi koordinat node per user dan per scope (default / per site). Terbukti via tes integrasi: posisi node tersimpan persisten di DB dan terisolasi mandiri antar user (Admin vs Operator NOC). Pengguna juga dapat menekan tombol "Rapikan Posisi" untuk kalkulasi auto-layout grid otomatis (DoD lolos).
 
 ## Fase 8 — Impor (Minggu 10–11, P1)
 

@@ -34,6 +34,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
               >
                 Master Data
               </Link>
+              <Link
+                href="/topology"
+                className="text-slate-600 transition hover:text-slate-900"
+              >
+                Topologi
+              </Link>
               {canViewAudit && (
                 <Link
                   href="/audit-logs"

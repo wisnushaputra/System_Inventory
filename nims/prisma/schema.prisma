@@ -49,6 +49,7 @@ model User {
   createdConnections NetworkConnection[] @relation("CreatedConnections")
   updatedConnections NetworkConnection[] @relation("UpdatedConnections")
   uploadedDocuments Document[] @relation("UploadedDocuments")
+  topologyLayouts   TopologyLayout[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -327,4 +328,17 @@ model Document {
   @@index([category])
   @@index([checksum])
   @@index([archivedAt])
+}
+
+model TopologyLayout {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope     String   @default("default") // e.g. "default", "site-1", "all"
+  positions Json     // Record<deviceId, { x: number, y: number }>
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, scope])
+  @@index([userId])
 }
