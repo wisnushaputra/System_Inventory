@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: 'Impor data massal perangkat jaringan menggunakan berkas CSV',
 };
 
+export const instant = false;
+
 export default async function DeviceImportPage() {
   await requirePermission('device.create');
 
