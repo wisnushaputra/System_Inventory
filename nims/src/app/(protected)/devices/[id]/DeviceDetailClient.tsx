@@ -2,6 +2,14 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import {
+  IconAlertTriangle,
+  IconFileDoc,
+  IconDownload,
+  IconClose,
+  IconRefresh,
+  IconPlus,
+} from '@/components/Icons';
 
 interface AuditItem {
   id: number;
@@ -12,9 +20,16 @@ interface AuditItem {
   afterData: any;
 }
 
-interface SubnetRef { id: number; name: string; cidr: string; }
-interface DeviceRef { id: number; hostname: string; deviceCode: string; }
-interface InterfaceRef { id: number; name: string; label: string | null; }
+interface SubnetRef {
+  id: number;
+  name: string;
+  cidr: string;
+}
+interface InterfaceRef {
+  id: number;
+  name: string;
+  label: string | null;
+}
 
 interface IpAddressItem {
   id: number;
@@ -138,15 +153,15 @@ interface DeviceDetailProps {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  enabled: 'bg-emerald-100 text-emerald-800',
-  disabled: 'bg-slate-200 text-slate-500',
-  up: 'bg-green-100 text-green-800',
-  down: 'bg-rose-100 text-rose-800',
-  unknown: 'bg-slate-100 text-slate-500',
-  ALLOCATED: 'bg-blue-100 text-blue-800',
-  RELEASED: 'bg-slate-200 text-slate-500',
-  RESERVED: 'bg-amber-100 text-amber-800',
-  AVAILABLE: 'bg-emerald-100 text-emerald-800',
+  enabled: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
+  disabled: 'bg-subtle text-ink-muted',
+  up: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
+  down: 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300',
+  unknown: 'bg-subtle text-ink-muted',
+  ALLOCATED: 'bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-300',
+  RELEASED: 'bg-subtle text-ink-muted',
+  RESERVED: 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300',
+  AVAILABLE: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
 };
 
 const DOC_CATEGORY_MAP: Record<string, string> = {
@@ -168,13 +183,20 @@ function formatBytes(bytes: number, decimals = 1) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function DeviceDetailClient({ device, history, canEdit, canArchive, canUploadDoc = false }: DeviceDetailProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'>('overview');
+export function DeviceDetailClient({
+  device,
+  history,
+  canEdit,
+  canArchive,
+  canUploadDoc = false,
+}: DeviceDetailProps) {
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'
+  >('overview');
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
   const [loadingArchive, setLoadingArchive] = useState(false);
 
-  // Ports state
   const [interfaces, setInterfaces] = useState<InterfaceItem[]>(device.interfaces || []);
   const [portsLoading, setPortsLoading] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -185,11 +207,9 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
   const [batchSpeed, setBatchSpeed] = useState<string>('1000');
   const [batchSubmitting, setBatchSubmitting] = useState(false);
 
-  // Network / IP state
   const [ipAddresses, setIpAddresses] = useState<IpAddressItem[]>(device.ipAddresses || []);
   const [ipLoading, setIpLoading] = useState(false);
 
-  // Connections state
   const [connections, setConnections] = useState<ConnectionItem[]>(device.connections || []);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [connIsArchived, setConnIsArchived] = useState(false);
@@ -206,12 +226,10 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
   const [lookupDevices, setLookupDevices] = useState<any[]>([]);
   const [lookupLoading, setLookupLoading] = useState(false);
 
-  // Archive connection modal state
   const [archiveConnTarget, setArchiveConnTarget] = useState<ConnectionItem | null>(null);
   const [archiveConnReason, setArchiveConnReason] = useState('');
   const [archiveConnLoading, setArchiveConnLoading] = useState(false);
 
-  // Documents state (Fase 5)
   const [documents, setDocuments] = useState<DocumentItem[]>(device.documents || []);
   const [docsLoading, setDocsLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -222,6 +240,23 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
   const [uploadSubmitting, setUploadSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [docDeletingId, setDocDeletingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const anyModal =
+      showArchiveModal || showBatchModal || showConnModal || Boolean(archiveConnTarget) || showUploadModal;
+    if (!anyModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowArchiveModal(false);
+        setShowBatchModal(false);
+        setShowConnModal(false);
+        setArchiveConnTarget(null);
+        setShowUploadModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showArchiveModal, showBatchModal, showConnModal, archiveConnTarget, showUploadModal]);
 
   const refreshInterfaces = useCallback(async () => {
     setPortsLoading(true);
@@ -248,7 +283,9 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
   const refreshConnections = useCallback(async () => {
     setConnectionsLoading(true);
     try {
-      const res = await fetch(`/api/connections?deviceId=${device.id}&isArchived=${connIsArchived}`);
+      const res = await fetch(
+        `/api/connections?deviceId=${device.id}&isArchived=${connIsArchived}`
+      );
       const data = await res.json();
       if (res.ok) setConnections(data.data || []);
     } finally {
@@ -283,7 +320,7 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
     if (activeTab === 'network' && ipAddresses.length === 0) refreshIpAddresses();
     if (activeTab === 'connections') refreshConnections();
     if (activeTab === 'documents') refreshDocuments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, connIsArchived]);
 
   const handleUploadDocument = async (e: React.FormEvent) => {
@@ -392,7 +429,10 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
         body: JSON.stringify({ reason: archiveConnReason.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.message); return; }
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
       setArchiveConnTarget(null);
       setArchiveConnReason('');
       await refreshConnections();
@@ -405,7 +445,10 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
     if (!confirm('Pulihkan relasi koneksi ini dari arsip?')) return;
     const res = await fetch(`/api/connections/${connId}/restore`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) { alert(data.message); return; }
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
     await refreshConnections();
   };
 
@@ -413,15 +456,28 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
     if (!confirm('Hapus relasi koneksi ini secara permanen?')) return;
     const res = await fetch(`/api/connections/${connId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) { alert(data.message); return; }
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
     await refreshConnections();
   };
 
   const handleDeleteInterface = async (iface: InterfaceItem) => {
-    if (!confirm(`Hapus port "${iface.name}"? IP address yang terhubung akan dilepas dari port ini.`)) return;
-    const res = await fetch(`/api/devices/${device.id}/interfaces/${iface.id}`, { method: 'DELETE' });
+    if (
+      !confirm(
+        `Hapus port "${iface.name}"? IP address yang terhubung akan dilepas dari port ini.`
+      )
+    )
+      return;
+    const res = await fetch(`/api/devices/${device.id}/interfaces/${iface.id}`, {
+      method: 'DELETE',
+    });
     const data = await res.json();
-    if (!res.ok) { alert(data.message); return; }
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
     await refreshInterfaces();
   };
 
@@ -442,7 +498,10 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
         }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.message); return; }
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
       setShowBatchModal(false);
       await refreshInterfaces();
     } finally {
@@ -454,18 +513,27 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
     if (!confirm(`Lepas alokasi IP ${address}? Status akan berubah menjadi RELEASED.`)) return;
     const res = await fetch(`/api/ipam/addresses/${ipId}/release`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) { alert(data.message); return; }
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
     await refreshIpAddresses();
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'PLANNED': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'MAINTENANCE': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'RETIRED': return 'bg-slate-200 text-slate-800 border-slate-300';
-      case 'LOST': return 'bg-rose-100 text-rose-800 border-rose-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'ACTIVE':
+        return 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800';
+      case 'PLANNED':
+        return 'bg-sky-100 text-sky-900 border-sky-200 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800';
+      case 'MAINTENANCE':
+        return 'bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800';
+      case 'RETIRED':
+        return 'bg-subtle text-ink-secondary border-line';
+      case 'LOST':
+        return 'bg-rose-100 text-rose-900 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800';
+      default:
+        return 'bg-subtle text-ink-secondary border-line';
     }
   };
 
@@ -503,19 +571,23 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
   return (
     <div className="space-y-6">
-      {/* Top Banner if Archived */}
       {device.archivedAt && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="font-bold">⚠️ Perangkat Ini Sedang Diarsipkan</p>
-            <p className="mt-0.5">
-              Waktu arsip: {new Date(device.archivedAt).toLocaleString('id-ID')} | Alasan: <em>"{device.archiveReason}"</em>
-            </p>
+        <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50 p-4 text-xs text-amber-900 dark:text-amber-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-300" />
+            <div>
+              <p className="font-bold">Perangkat Ini Sedang Diarsipkan</p>
+              <p className="mt-0.5">
+                Waktu arsip: {new Date(device.archivedAt).toLocaleString('id-ID')} | Alasan:{' '}
+                <em>&ldquo;{device.archiveReason}&rdquo;</em>
+              </p>
+            </div>
           </div>
           {canArchive && (
             <button
+              type="button"
               onClick={handleRestore}
-              className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-500"
+              className="min-h-[38px] rounded-lg bg-amber-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-500"
             >
               Pulihkan ke Aktif
             </button>
@@ -524,35 +596,42 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
       )}
 
       {/* Header Info */}
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{device.hostname}</h1>
-            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(device.inventoryStatus)}`}>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">{device.hostname}</h1>
+            <span
+              className={`rounded-md border px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(
+                device.inventoryStatus
+              )}`}
+            >
               {device.inventoryStatus}
             </span>
           </div>
-          <p className="mt-1 font-mono text-xs text-indigo-700 font-medium">
+          <p className="mt-1 font-mono text-xs text-accent-ink font-semibold">
             {device.deviceCode}
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {device.category.name} &bull; {device.vendor.name} {device.model ? `(${device.model.modelName})` : ''} &bull; Lokasi: {device.site.siteCode} - {device.site.name}
+          <p className="text-xs text-ink-secondary mt-1">
+            {device.category.name} | {device.vendor.name}{' '}
+            {device.model ? `(${device.model.modelName})` : ''} | Lokasi: {device.site.siteCode} -{' '}
+            {device.site.name}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canEdit && (
             <Link
               href={`/devices/${device.id}/edit`}
-              className="rounded border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex min-h-[40px] items-center rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-ink hover:bg-subtle"
             >
               Ubah Data
             </Link>
           )}
           {canArchive && !device.archivedAt && (
             <button
+              type="button"
               onClick={() => setShowArchiveModal(true)}
-              className="rounded bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
+              className="min-h-[40px] rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
             >
               Arsipkan
             </button>
@@ -560,157 +639,135 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
         </div>
       </div>
 
-      {/* Tabs Header */}
-      <div className="flex border-b border-slate-200 text-xs font-medium overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'overview'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          1. Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('network')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'network'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          2. Network (IP & Subnet)
-        </button>
-        <button
-          onClick={() => setActiveTab('ports')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'ports'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          3. Ports (Interfaces)
-        </button>
-        <button
-          onClick={() => setActiveTab('connections')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'connections'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          4. Connections (Relasi)
-        </button>
-        <button
-          onClick={() => setActiveTab('documents')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'documents'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          5. Documents ({documents.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`border-b-2 px-4 py-2.5 transition whitespace-nowrap ${
-            activeTab === 'history'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          6. History (Audit Log) ({history.length})
-        </button>
+      {/* Tabs */}
+      <div className="border-b border-line overflow-x-auto">
+        <div role="tablist" aria-label="Detail Perangkat" className="flex space-x-2 text-xs font-medium">
+          {[
+            { id: 'overview', label: '1. Overview' },
+            { id: 'network', label: '2. Network (IP & Subnet)' },
+            { id: 'ports', label: `3. Ports (${interfaces.length})` },
+            { id: 'connections', label: '4. Connections (Relasi)' },
+            { id: 'documents', label: `5. Documents (${documents.length})` },
+            { id: 'history', label: `6. History (${history.length})` },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              onClick={() => setActiveTab(t.id as any)}
+              className={`min-h-[42px] border-b-2 px-3.5 py-2.5 transition-colors duration-150 whitespace-nowrap ${
+                activeTab === t.id
+                  ? 'border-accent text-accent-ink font-semibold'
+                  : 'border-transparent text-ink-secondary hover:text-ink'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Box 1: Identitas & Hardware */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b pb-2">
+        <div key="tab-overview" className="animate-enter grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-xs space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary border-b border-line pb-2.5">
               Identitas & Spesifikasi
-            </h3>
-            <dl className="divide-y divide-slate-100 text-xs">
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Kode Perangkat</dt>
-                <dd className="font-mono font-bold text-slate-800">{device.deviceCode}</dd>
+            </h2>
+            <dl className="divide-y divide-line text-xs">
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Kode Perangkat</dt>
+                <dd className="font-mono font-bold text-ink">{device.deviceCode}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Hostname</dt>
-                <dd className="font-semibold text-slate-800">{device.hostname}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Hostname</dt>
+                <dd className="font-semibold text-ink">{device.hostname}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Kategori</dt>
-                <dd className="text-slate-800">{device.category.name}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Kategori</dt>
+                <dd className="text-ink">{device.category.name}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Vendor</dt>
-                <dd className="text-slate-800 font-medium">{device.vendor.name}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Vendor</dt>
+                <dd className="text-ink font-medium">{device.vendor.name}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Model</dt>
-                <dd className="text-slate-800">{device.model ? `${device.model.modelName} (${device.model.modelCode})` : '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Model</dt>
+                <dd className="text-ink">
+                  {device.model ? `${device.model.modelName} (${device.model.modelCode})` : '-'}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Serial Number</dt>
-                <dd className="font-mono text-slate-800">{device.serialNumber || '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Serial Number</dt>
+                <dd className="font-mono text-ink">{device.serialNumber || '-'}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Network Role</dt>
-                <dd className="uppercase font-mono text-slate-800">{device.networkRole || '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Network Role</dt>
+                <dd className="uppercase font-mono text-ink">{device.networkRole || '-'}</dd>
               </div>
             </dl>
           </div>
 
-          {/* Box 2: Penempatan & Lokasi Fisik */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b pb-2">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-xs space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary border-b border-line pb-2.5">
               Lokasi & Manajemen
-            </h3>
-            <dl className="divide-y divide-slate-100 text-xs">
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Site / Lokasi</dt>
-                <dd className="font-semibold text-slate-800">{device.site.siteCode} - {device.site.name}</dd>
+            </h2>
+            <dl className="divide-y divide-line text-xs">
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Site / Lokasi</dt>
+                <dd className="font-semibold text-ink">
+                  {device.site.siteCode} - {device.site.name}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Ruangan</dt>
-                <dd className="text-slate-800">{device.room ? `${device.room.name} (${device.room.floor || 'Lantai ?'})` : '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Ruangan</dt>
+                <dd className="text-ink">
+                  {device.room ? `${device.room.name} (${device.room.floor || 'Lantai ?'})` : '-'}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Rak</dt>
-                <dd className="text-slate-800">{device.rack ? `${device.rack.name} (${device.rack.unitCapacity}U)` : '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Rak</dt>
+                <dd className="text-ink">
+                  {device.rack ? `${device.rack.name} (${device.rack.unitCapacity}U)` : '-'}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Tim Penanggung Jawab</dt>
-                <dd className="text-slate-800">{device.ownerTeam || '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Tim Penanggung Jawab</dt>
+                <dd className="text-ink">{device.ownerTeam || '-'}</dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Tanggal Pasang</dt>
-                <dd className="text-slate-800">{device.installedAt ? new Date(device.installedAt).toLocaleDateString('id-ID') : '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Tanggal Pasang</dt>
+                <dd className="font-mono text-ink">
+                  {device.installedAt ? new Date(device.installedAt).toLocaleDateString('id-ID') : '-'}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Batas Garansi</dt>
-                <dd className="text-slate-800">{device.warrantyExpiry ? new Date(device.warrantyExpiry).toLocaleDateString('id-ID') : '-'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Batas Garansi</dt>
+                <dd className="font-mono text-ink">
+                  {device.warrantyExpiry
+                    ? new Date(device.warrantyExpiry).toLocaleDateString('id-ID')
+                    : '-'}
+                </dd>
               </div>
-              <div className="py-2 flex justify-between">
-                <dt className="text-slate-500">Didaftarkan Oleh</dt>
-                <dd className="text-slate-800">{device.creator ? `${device.creator.name} (${device.creator.username})` : 'System'}</dd>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Didaftarkan Oleh</dt>
+                <dd className="text-ink">
+                  {device.creator ? `${device.creator.name} (${device.creator.username})` : 'System'}
+                </dd>
               </div>
             </dl>
           </div>
 
-          {/* Box 3: Keterangan & Catatan */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:col-span-2 space-y-2 text-xs">
-            <h3 className="font-bold text-slate-700">Deskripsi & Catatan Manajemen</h3>
-            <p className="text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-xs md:col-span-2 space-y-2.5 text-xs">
+            <h2 className="font-bold text-ink">Deskripsi & Catatan Manajemen</h2>
+            <p className="text-ink-secondary bg-canvas p-3 rounded-lg border border-line">
               {device.description || 'Tidak ada deskripsi perangkat.'}
             </p>
             {device.managementNotes && (
               <div className="mt-2">
-                <span className="font-semibold text-slate-700">Catatan Manajemen Internal:</span>
-                <p className="text-slate-600 bg-amber-50/50 p-3 rounded border border-amber-200 mt-1">
+                <span className="font-semibold text-ink">Catatan Manajemen Internal:</span>
+                <p className="text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 mt-1">
                   {device.managementNotes}
                 </p>
               </div>
@@ -721,72 +778,87 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
       {/* TAB 2: NETWORK */}
       {activeTab === 'network' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex items-center justify-between border-b pb-3">
+        <div key="tab-network" className="animate-enter rounded-xl border border-line bg-surface p-6 shadow-xs space-y-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Alokasi IP Address (IPAM)</h3>
-              <p className="text-slate-500 mt-0.5">
-                Management IP diambil dari tabel <code className="bg-slate-100 px-1 rounded">ip_addresses</code> (purpose=management, status=ALLOCATED) tanpa kolom duplikat di tabel devices.
+              <h2 className="text-sm font-bold text-ink">Alokasi IP Address (IPAM)</h2>
+              <p className="text-ink-secondary mt-0.5">
+                Management IP berasal dari alokasi tabel IPAM dengan tujuan management dan status ALLOCATED.
               </p>
             </div>
             <button
+              type="button"
               onClick={refreshIpAddresses}
-              className="rounded border border-slate-300 px-3 py-1 text-slate-600 hover:bg-slate-50"
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1 text-ink-secondary hover:bg-subtle hover:text-ink"
             >
-              Refresh
+              <IconRefresh className={`h-3.5 w-3.5 ${ipLoading ? 'animate-spin' : ''}`} />
+              <span>Muat Ulang</span>
             </button>
           </div>
 
           {device.managementIp && (
-            <div className="flex items-center gap-2 rounded-md bg-indigo-50 border border-indigo-200 px-4 py-2">
-              <span className="text-indigo-500 font-bold text-xs">Management IP:</span>
-              <span className="font-mono font-bold text-indigo-700 text-sm">{device.managementIp}</span>
+            <div className="flex items-center gap-2 rounded-lg bg-accent-soft border border-accent/30 px-4 py-2.5">
+              <span className="text-accent-ink font-semibold text-xs">Management IP:</span>
+              <span className="font-mono font-bold text-accent-ink text-sm">
+                {device.managementIp}
+              </span>
             </div>
           )}
 
           {ipLoading ? (
-            <div className="text-center py-8 text-slate-400">Memuat alokasi IP...</div>
+            <div className="text-center py-8 text-ink-secondary">Memuat alokasi IP...</div>
           ) : ipAddresses.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
-              <p className="font-medium">Belum ada IP address yang dialokasikan ke perangkat ini.</p>
+            <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary">
+              <p className="font-medium text-ink">Belum ada IP address yang dialokasikan ke perangkat ini.</p>
               <p className="text-[11px] mt-1">Alokasikan IP melalui halaman IPAM Subnets.</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-left">
-                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="min-w-full divide-y divide-line text-left">
+                <thead className="bg-subtle text-ink-secondary font-semibold text-[11px] uppercase">
                   <tr>
-                    <th className="px-3 py-2">Alamat IP</th>
-                    <th className="px-3 py-2">Subnet</th>
-                    <th className="px-3 py-2">Interface</th>
-                    <th className="px-3 py-2">Purpose</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Hostname</th>
-                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                    <th className="px-3.5 py-2.5">Alamat IP</th>
+                    <th className="px-3.5 py-2.5">Subnet</th>
+                    <th className="px-3.5 py-2.5">Interface</th>
+                    <th className="px-3.5 py-2.5">Purpose</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    <th className="px-3.5 py-2.5">Hostname</th>
+                    {canEdit && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {ipAddresses.map((ip) => (
-                    <tr key={ip.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-mono font-bold text-indigo-700">{ip.address}</td>
-                      <td className="px-3 py-2 font-mono text-slate-600 text-[11px]">
-                        <span>{ip.subnet.name}</span>
-                        <span className="block text-slate-400">{ip.subnet.cidr}</span>
+                    <tr key={ip.id} className="hover:bg-subtle/60">
+                      <td className="px-3.5 py-2.5 font-mono font-bold text-accent-ink">
+                        {ip.address}
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{ip.interface?.name || <span className="italic text-slate-300">-</span>}</td>
-                      <td className="px-3 py-2 uppercase font-mono text-slate-500 text-[11px]">{ip.purpose}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLOR[ip.allocationStatus] || 'bg-slate-100 text-slate-700'}`}>
+                      <td className="px-3.5 py-2.5 font-mono text-ink-secondary text-[11px]">
+                        <span className="text-ink">{ip.subnet.name}</span>
+                        <span className="block text-ink-muted">{ip.subnet.cidr}</span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-ink-secondary">
+                        {ip.interface?.name || <span className="italic text-ink-muted">-</span>}
+                      </td>
+                      <td className="px-3.5 py-2.5 uppercase font-mono text-ink-muted text-[11px]">
+                        {ip.purpose}
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                            STATUS_COLOR[ip.allocationStatus] || 'bg-subtle text-ink-secondary'
+                          }`}
+                        >
                           {ip.allocationStatus}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{ip.hostname || '-'}</td>
+                      <td className="px-3.5 py-2.5 text-ink-secondary">{ip.hostname || '-'}</td>
                       {canEdit && (
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3.5 py-2.5 text-right">
                           {ip.allocationStatus === 'ALLOCATED' && (
                             <button
+                              type="button"
                               onClick={() => handleReleaseIp(ip.id, ip.address)}
-                              className="text-rose-600 hover:text-rose-800 font-medium"
+                              className="text-rose-700 dark:text-rose-300 hover:underline font-medium"
                             >
                               Lepas
                             </button>
@@ -804,80 +876,102 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
       {/* TAB 3: PORTS */}
       {activeTab === 'ports' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex items-center justify-between border-b pb-3">
+        <div key="tab-ports" className="animate-enter rounded-xl border border-line bg-surface p-6 shadow-xs space-y-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Daftar Interface & Port ({interfaces.length})</h3>
-              <p className="text-slate-500 mt-0.5">
-                Port fisik/logis untuk perangkat {device.hostname}. Nama port unik per perangkat (constraint DB).
+              <h2 className="text-sm font-bold text-ink">
+                Daftar Interface & Port ({interfaces.length})
+              </h2>
+              <p className="text-ink-secondary mt-0.5">
+                Port fisik dan logis untuk perangkat {device.hostname}.
               </p>
             </div>
             {canEdit && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowBatchModal(true)}
-                  className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                >
-                  + Batch Port
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(true)}
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
+              >
+                <IconPlus className="h-3.5 w-3.5" />
+                <span>Batch Port</span>
+              </button>
             )}
           </div>
 
           {portsLoading ? (
-            <div className="text-center py-8 text-slate-400">Memuat daftar port...</div>
+            <div className="text-center py-8 text-ink-secondary">Memuat daftar port...</div>
           ) : interfaces.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
-              <p className="font-medium">Belum ada port/interface yang terdaftar.</p>
+            <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary">
+              <p className="font-medium text-ink">Belum ada port/interface yang terdaftar.</p>
               {canEdit && (
                 <button
+                  type="button"
                   onClick={() => setShowBatchModal(true)}
-                  className="mt-3 rounded bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                  className="mt-3 inline-flex min-h-[38px] items-center rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
                 >
                   Tambah Port Berpola
                 </button>
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-left">
-                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="min-w-full divide-y divide-line text-left">
+                <thead className="bg-subtle text-ink-secondary font-semibold text-[11px] uppercase">
                   <tr>
-                    <th className="px-3 py-2">Nama Port</th>
-                    <th className="px-3 py-2">Tipe</th>
-                    <th className="px-3 py-2">Kecepatan</th>
-                    <th className="px-3 py-2">Admin Status</th>
-                    <th className="px-3 py-2">IP Address</th>
-                    <th className="px-3 py-2">Deskripsi</th>
-                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                    <th className="px-3.5 py-2.5">Nama Port</th>
+                    <th className="px-3.5 py-2.5">Tipe</th>
+                    <th className="px-3.5 py-2.5">Kecepatan</th>
+                    <th className="px-3.5 py-2.5">Admin Status</th>
+                    <th className="px-3.5 py-2.5">IP Address</th>
+                    <th className="px-3.5 py-2.5">Deskripsi</th>
+                    {canEdit && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {interfaces.map((iface) => (
-                    <tr key={iface.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-mono font-bold text-slate-800">{iface.name}</td>
-                      <td className="px-3 py-2 uppercase text-slate-500 font-mono text-[11px]">{iface.interfaceType}</td>
-                      <td className="px-3 py-2 text-slate-600">
-                        {iface.speedMbps ? `${iface.speedMbps >= 1000 ? `${iface.speedMbps / 1000}G` : `${iface.speedMbps}M`}` : '-'}
+                    <tr key={iface.id} className="hover:bg-subtle/60">
+                      <td className="px-3.5 py-2.5 font-mono font-bold text-ink">{iface.name}</td>
+                      <td className="px-3.5 py-2.5 uppercase text-ink-muted font-mono text-[11px]">
+                        {iface.interfaceType}
                       </td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLOR[iface.adminStatus] || 'bg-slate-100 text-slate-700'}`}>
+                      <td className="px-3.5 py-2.5 font-mono text-ink-secondary">
+                        {iface.speedMbps
+                          ? `${
+                              iface.speedMbps >= 1000
+                                ? `${iface.speedMbps / 1000}G`
+                                : `${iface.speedMbps}M`
+                            }`
+                          : '-'}
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                            STATUS_COLOR[iface.adminStatus] || 'bg-subtle text-ink-secondary'
+                          }`}
+                        >
                           {iface.adminStatus}
                         </span>
                       </td>
-                      <td className="px-3 py-2 font-mono text-indigo-700">
-                        {iface.ipAddresses.length > 0
-                          ? iface.ipAddresses.map((ip) => (
-                              <span key={ip.id} className="block text-[11px]">{ip.address}</span>
-                            ))
-                          : <span className="italic text-slate-300">-</span>}
+                      <td className="px-3.5 py-2.5 font-mono text-accent-ink">
+                        {iface.ipAddresses.length > 0 ? (
+                          iface.ipAddresses.map((ip) => (
+                            <span key={ip.id} className="block text-[11px]">
+                              {ip.address}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="italic text-ink-muted">-</span>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-slate-500 italic">{iface.description || '-'}</td>
+                      <td className="px-3.5 py-2.5 text-ink-secondary italic">
+                        {iface.description || '-'}
+                      </td>
                       {canEdit && (
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3.5 py-2.5 text-right">
                           <button
+                            type="button"
                             onClick={() => handleDeleteInterface(iface)}
-                            className="text-rose-500 hover:text-rose-700 font-medium"
+                            className="text-rose-700 dark:text-rose-300 hover:underline font-medium"
                           >
                             Hapus
                           </button>
@@ -892,52 +986,73 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
           {/* Batch Modal */}
           {showBatchModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 space-y-4">
-                <h3 className="font-semibold text-slate-800 text-sm">Tambah Port Berpola</h3>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="batch-port-title"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+            >
+              <div className="bg-elevated border border-line rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4 animate-modal">
+                <h3 id="batch-port-title" className="font-bold text-ink text-sm">
+                  Tambah Port Berpola
+                </h3>
                 <form onSubmit={handleBatchCreate} className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-slate-500 mb-1">Prefix nama port</label>
+                    <label htmlFor="batch-prefix" className="block text-ink-secondary font-semibold mb-1">
+                      Prefix nama port
+                    </label>
                     <input
+                      id="batch-prefix"
                       type="text"
                       value={batchPrefix}
                       onChange={(e) => setBatchPrefix(e.target.value)}
-                      className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono"
+                      className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 font-mono text-ink focus:border-accent focus:outline-none"
                       placeholder="ether"
                       required
                     />
-                    <p className="text-slate-400 mt-1">Contoh: prefix=ether, start=1, count=8 menghasilkan ether1...ether8</p>
+                    <p className="text-ink-muted mt-1">
+                      Contoh: prefix=ether, start=1, count=8 menghasilkan ether1..ether8
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-500 mb-1">Mulai dari</label>
+                      <label htmlFor="batch-start" className="block text-ink-secondary font-semibold mb-1">
+                        Mulai dari
+                      </label>
                       <input
+                        id="batch-start"
                         type="number"
                         min={0}
                         value={batchStart}
                         onChange={(e) => setBatchStart(parseInt(e.target.value, 10))}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-500 mb-1">Jumlah port</label>
+                      <label htmlFor="batch-count" className="block text-ink-secondary font-semibold mb-1">
+                        Jumlah port
+                      </label>
                       <input
+                        id="batch-count"
                         type="number"
                         min={1}
                         max={96}
                         value={batchCount}
                         onChange={(e) => setBatchCount(parseInt(e.target.value, 10))}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-500 mb-1">Tipe interface</label>
+                      <label htmlFor="batch-type" className="block text-ink-secondary font-semibold mb-1">
+                        Tipe interface
+                      </label>
                       <select
+                        id="batch-type"
                         value={batchType}
                         onChange={(e) => setBatchType(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-ink"
                       >
                         <option value="ethernet">Ethernet</option>
                         <option value="sfp">SFP</option>
@@ -948,11 +1063,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                       </select>
                     </div>
                     <div>
-                      <label className="block text-slate-500 mb-1">Kecepatan (Mbps)</label>
+                      <label htmlFor="batch-speed" className="block text-ink-secondary font-semibold mb-1">
+                        Kecepatan (Mbps)
+                      </label>
                       <select
+                        id="batch-speed"
                         value={batchSpeed}
                         onChange={(e) => setBatchSpeed(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-ink"
                       >
                         <option value="">-</option>
                         <option value="10">10 Mbps</option>
@@ -965,21 +1083,23 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                       </select>
                     </div>
                   </div>
-                  <div className="rounded bg-slate-50 border border-slate-200 px-3 py-2 font-mono text-indigo-700 text-[11px]">
-                    Preview: {batchPrefix}{batchStart} ... {batchPrefix}{batchStart + batchCount - 1} ({batchCount} port)
+                  <div className="rounded-lg bg-accent-soft border border-accent/25 px-3 py-2 font-mono text-accent-ink text-[11px]">
+                    Preview: {batchPrefix}
+                    {batchStart} ... {batchPrefix}
+                    {batchStart + batchCount - 1} ({batchCount} port)
                   </div>
                   <div className="flex gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => setShowBatchModal(false)}
-                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                      className="min-h-[38px] flex-1 rounded-lg border border-line bg-surface py-1.5 font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={batchSubmitting}
-                      className="flex-1 rounded bg-indigo-600 py-1.5 font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                      className="min-h-[38px] flex-1 rounded-lg bg-accent py-1.5 font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-60"
                     >
                       {batchSubmitting ? 'Menambahkan...' : `Tambah ${batchCount} Port`}
                     </button>
@@ -993,153 +1113,164 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
       {/* TAB 4: CONNECTIONS */}
       {activeTab === 'connections' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
+        <div key="tab-connections" className="animate-enter rounded-xl border border-line bg-surface p-6 shadow-xs space-y-4 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">
+              <h2 className="text-sm font-bold text-ink">
                 Relasi Jaringan Antarperangkat ({connections.length})
-              </h3>
-              <p className="text-slate-500 mt-0.5">
-                Koneksi fisik dan logis dari port perangkat ini ke port perangkat tetangga. Anti-duplikat dan satu port fisik per relasi aktif.
+              </h2>
+              <p className="text-ink-secondary mt-0.5">
+                Koneksi fisik dan logis dari port perangkat ini ke perangkat tetangga.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-1.5 text-ink-secondary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={connIsArchived}
                   onChange={(e) => setConnIsArchived(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-line-strong text-accent focus:ring-accent"
                 />
                 <span>Tampilkan Arsip</span>
               </label>
               {canEdit && (
                 <button
+                  type="button"
                   onClick={handleOpenAddConnection}
-                  className="rounded bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500"
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 font-semibold text-accent-fg hover:bg-accent-hover"
                 >
-                  + Tambah Koneksi
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Tambah Koneksi</span>
                 </button>
               )}
             </div>
           </div>
 
           {connectionsLoading ? (
-            <div className="text-center py-8 text-slate-400">Memuat relasi koneksi...</div>
+            <div className="text-center py-8 text-ink-secondary">Memuat relasi koneksi...</div>
           ) : connections.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-400">
-              <p className="font-medium">
+            <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary">
+              <p className="font-medium text-ink">
                 {connIsArchived
                   ? 'Tidak ada relasi koneksi yang diarsipkan untuk perangkat ini.'
                   : 'Belum ada relasi koneksi aktif untuk perangkat ini.'}
               </p>
               {canEdit && !connIsArchived && (
                 <button
+                  type="button"
                   onClick={handleOpenAddConnection}
-                  className="mt-3 rounded bg-indigo-600 px-4 py-1.5 font-medium text-white hover:bg-indigo-500"
+                  className="mt-3 inline-flex min-h-[38px] items-center rounded-lg bg-accent px-4 py-1.5 font-semibold text-accent-fg hover:bg-accent-hover"
                 >
                   Hubungkan Port ke Perangkat Lain
                 </button>
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-left">
-                <thead className="bg-slate-50 text-slate-600 font-semibold text-[11px]">
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="min-w-full divide-y divide-line text-left">
+                <thead className="bg-subtle text-ink-secondary font-semibold text-[11px] uppercase">
                   <tr>
-                    <th className="px-3 py-2">Port Lokal</th>
-                    <th className="px-3 py-2">Tipe & Media</th>
-                    <th className="px-3 py-2">Perangkat & Port Lawan</th>
-                    <th className="px-3 py-2">Kapasitas</th>
-                    <th className="px-3 py-2">Label / Catatan</th>
-                    <th className="px-3 py-2">Status</th>
-                    {connIsArchived && <th className="px-3 py-2">Alasan Arsip</th>}
-                    {canEdit && <th className="px-3 py-2 text-right">Aksi</th>}
+                    <th className="px-3.5 py-2.5">Port Lokal</th>
+                    <th className="px-3.5 py-2.5">Tipe & Media</th>
+                    <th className="px-3.5 py-2.5">Perangkat & Port Lawan</th>
+                    <th className="px-3.5 py-2.5">Kapasitas</th>
+                    <th className="px-3.5 py-2.5">Label / Catatan</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    {connIsArchived && <th className="px-3.5 py-2.5">Alasan Arsip</th>}
+                    {canEdit && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {connections.map((c) => {
                     const isLocalA = c.endpointAInterface.deviceId === device.id;
                     const localPort = isLocalA ? c.endpointAInterface : c.endpointBInterface;
                     const remotePort = isLocalA ? c.endpointBInterface : c.endpointAInterface;
 
                     return (
-                      <tr key={c.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 font-mono font-bold text-slate-800">
+                      <tr key={c.id} className="hover:bg-subtle/60">
+                        <td className="px-3.5 py-2.5 font-mono font-bold text-ink">
                           {localPort.name}
                         </td>
-                        <td className="px-3 py-2">
-                          <span className="font-semibold uppercase text-slate-700 block">
+                        <td className="px-3.5 py-2.5">
+                          <span className="font-semibold uppercase text-ink block">
                             {c.relationType}
                           </span>
-                          <span className="text-[11px] text-slate-500 capitalize">
+                          <span className="text-[11px] text-ink-muted capitalize">
                             {c.medium || 'unknown'}
                           </span>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2.5">
                           <Link
                             href={`/devices/${remotePort.device.id}`}
-                            className="font-semibold text-indigo-700 hover:underline block"
+                            className="font-semibold text-accent-ink hover:underline block"
                           >
                             {remotePort.device.hostname}
                           </Link>
-                          <span className="font-mono text-slate-600 text-[11px]">
-                            Port: <strong>{remotePort.name}</strong> ({remotePort.device.deviceCode})
+                          <span className="font-mono text-ink-secondary text-[11px]">
+                            Port: <strong className="text-ink">{remotePort.name}</strong> (
+                            {remotePort.device.deviceCode})
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-600">
+                        <td className="px-3.5 py-2.5 font-mono text-ink-secondary">
                           {c.capacityMbps
                             ? c.capacityMbps >= 1000
                               ? `${c.capacityMbps / 1000} Gbps`
                               : `${c.capacityMbps} Mbps`
                             : '-'}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">
-                          {c.label && <span className="font-medium block">{c.label}</span>}
-                          {c.description && <span className="text-slate-400 text-[11px] block">{c.description}</span>}
-                          {!c.label && !c.description && <span className="text-slate-300 italic">-</span>}
+                        <td className="px-3.5 py-2.5 text-ink-secondary">
+                          {c.label && <span className="font-medium text-ink block">{c.label}</span>}
+                          {c.description && (
+                            <span className="text-ink-muted text-[11px] block">{c.description}</span>
+                          )}
+                          {!c.label && !c.description && (
+                            <span className="text-ink-muted italic">-</span>
+                          )}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2.5">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                               c.archivedAt
-                                ? 'bg-slate-200 text-slate-700'
+                                ? 'bg-subtle text-ink-secondary'
                                 : c.status === 'documented'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
+                                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300'
+                                : 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300'
                             }`}
                           >
                             {c.archivedAt ? 'ARCHIVED' : c.status}
                           </span>
                         </td>
                         {connIsArchived && (
-                          <td className="px-3 py-2 text-slate-500 italic text-[11px]">
+                          <td className="px-3.5 py-2.5 text-ink-secondary italic text-[11px]">
                             {c.archiveReason || '-'}
                           </td>
                         )}
                         {canEdit && (
-                          <td className="px-3 py-2 text-right space-x-2">
+                          <td className="px-3.5 py-2.5 text-right space-x-2 whitespace-nowrap">
                             {!c.archivedAt ? (
                               <button
+                                type="button"
                                 onClick={() => {
                                   setArchiveConnTarget(c);
                                   setArchiveConnReason('');
                                 }}
-                                className="text-amber-600 hover:text-amber-800 font-medium"
+                                className="text-amber-700 dark:text-amber-300 hover:underline font-medium"
                               >
                                 Arsipkan
                               </button>
                             ) : (
                               <button
+                                type="button"
                                 onClick={() => handleRestoreConnection(c.id)}
-                                className="text-emerald-600 hover:text-emerald-800 font-medium"
+                                className="text-emerald-700 dark:text-emerald-300 hover:underline font-medium"
                               >
                                 Pulihkan
                               </button>
                             )}
                             <button
+                              type="button"
                               onClick={() => handleDeleteConnection(c.id)}
-                              className="text-rose-500 hover:text-rose-700 font-medium"
+                              className="text-rose-700 dark:text-rose-300 hover:underline font-medium"
                             >
                               Hapus
                             </button>
@@ -1155,28 +1286,37 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
           {/* Modal Tambah Koneksi */}
           {showConnModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <h3 className="font-semibold text-slate-800 text-sm">Hubungkan Port Antarperangkat</h3>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-conn-title"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+            >
+              <div className="bg-elevated border border-line rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-modal">
+                <div className="flex items-center justify-between border-b border-line pb-2.5">
+                  <h3 id="add-conn-title" className="font-bold text-ink text-sm">
+                    Hubungkan Port Antarperangkat
+                  </h3>
                   <button
+                    type="button"
+                    aria-label="Tutup dialog"
                     onClick={() => setShowConnModal(false)}
-                    className="text-slate-400 hover:text-slate-600 font-bold"
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
                   >
-                    &times;
+                    <IconClose className="h-4 w-4" />
                   </button>
                 </div>
 
                 <form onSubmit={handleCreateConnection} className="space-y-3 text-xs">
-                  {/* Step 1: Port Lokal */}
                   <div>
-                    <label className="block text-slate-600 font-semibold mb-1">
+                    <label htmlFor="conn-local" className="block text-ink-secondary font-semibold mb-1">
                       1. Port Sumber (Perangkat: {device.hostname})
                     </label>
                     <select
+                      id="conn-local"
                       value={connLocalIfaceId}
                       onChange={(e) => setConnLocalIfaceId(e.target.value)}
-                      className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       required
                     >
                       <option value="">Pilih Port Lokal</option>
@@ -1188,43 +1328,43 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                     </select>
                   </div>
 
-                  {/* Step 2: Perangkat Lawan */}
                   <div>
-                    <label className="block text-slate-600 font-semibold mb-1">
+                    <label htmlFor="conn-remote-dev" className="block text-ink-secondary font-semibold mb-1">
                       2. Perangkat Tujuan (Tetangga)
                     </label>
                     {lookupLoading ? (
-                      <p className="text-slate-400">Memuat daftar perangkat...</p>
+                      <p className="text-ink-muted">Memuat daftar perangkat...</p>
                     ) : (
                       <select
+                        id="conn-remote-dev"
                         value={connRemoteDeviceId}
                         onChange={(e) => {
                           setConnRemoteDeviceId(e.target.value);
                           setConnRemoteIfaceId('');
                         }}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                         required
                       >
                         <option value="">Pilih Perangkat Lawan</option>
                         {lookupDevices.map((d) => (
                           <option key={d.id} value={d.id}>
-                            {d.hostname} ({d.deviceCode}) — {d.interfaces?.length || 0} port
+                            {d.hostname} ({d.deviceCode}), {d.interfaces?.length || 0} port
                           </option>
                         ))}
                       </select>
                     )}
                   </div>
 
-                  {/* Step 3: Port Lawan */}
                   {connRemoteDeviceId && (
                     <div>
-                      <label className="block text-slate-600 font-semibold mb-1">
+                      <label htmlFor="conn-remote-port" className="block text-ink-secondary font-semibold mb-1">
                         3. Port Tujuan Lawan
                       </label>
                       <select
+                        id="conn-remote-port"
                         value={connRemoteIfaceId}
                         onChange={(e) => setConnRemoteIfaceId(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                         required
                       >
                         <option value="">Pilih Port Lawan</option>
@@ -1239,14 +1379,16 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                     </div>
                   )}
 
-                  {/* Step 4: Parameter Koneksi */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
                     <div>
-                      <label className="block text-slate-500 mb-1">Tipe Relasi</label>
+                      <label htmlFor="conn-rel-type" className="block text-ink-secondary font-semibold mb-1">
+                        Tipe Relasi
+                      </label>
                       <select
+                        id="conn-rel-type"
                         value={connRelationType}
                         onChange={(e) => setConnRelationType(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       >
                         <option value="physical">Physical (Fisik)</option>
                         <option value="logical">Logical (Logis / Trunk / VLAN)</option>
@@ -1255,11 +1397,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                       </select>
                     </div>
                     <div>
-                      <label className="block text-slate-500 mb-1">Media Transmisi</label>
+                      <label htmlFor="conn-medium" className="block text-ink-secondary font-semibold mb-1">
+                        Media Transmisi
+                      </label>
                       <select
+                        id="conn-medium"
                         value={connMedium}
                         onChange={(e) => setConnMedium(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       >
                         <option value="fiber">Fiber Optic</option>
                         <option value="copper">Copper (UTP / STP)</option>
@@ -1272,11 +1417,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-500 mb-1">Kapasitas (Mbps)</label>
+                      <label htmlFor="conn-cap" className="block text-ink-secondary font-semibold mb-1">
+                        Kapasitas (Mbps)
+                      </label>
                       <select
+                        id="conn-cap"
                         value={connCapacity}
                         onChange={(e) => setConnCapacity(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       >
                         <option value="">Tidak Ditentukan</option>
                         <option value="100">100 Mbps</option>
@@ -1287,25 +1435,31 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                       </select>
                     </div>
                     <div>
-                      <label className="block text-slate-500 mb-1">Label Koneksi (Opsional)</label>
+                      <label htmlFor="conn-label" className="block text-ink-secondary font-semibold mb-1">
+                        Label Koneksi (Opsional)
+                      </label>
                       <input
+                        id="conn-label"
                         type="text"
                         value={connLabel}
                         onChange={(e) => setConnLabel(e.target.value)}
                         placeholder="Uplink Core-to-Dist"
-                        className="w-full rounded border border-slate-300 px-2 py-1.5"
+                        className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-slate-500 mb-1">Keterangan Tambahan</label>
+                    <label htmlFor="conn-desc" className="block text-ink-secondary font-semibold mb-1">
+                      Keterangan Tambahan
+                    </label>
                     <input
+                      id="conn-desc"
                       type="text"
                       value={connDesc}
                       onChange={(e) => setConnDesc(e.target.value)}
                       placeholder="Patch cord kuning rack 2 ke rack 3"
-                      className="w-full rounded border border-slate-300 px-2 py-1.5"
+                      className="min-h-[38px] w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-ink"
                     />
                   </div>
 
@@ -1313,14 +1467,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                     <button
                       type="button"
                       onClick={() => setShowConnModal(false)}
-                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                      className="min-h-[38px] flex-1 rounded-lg border border-line bg-surface py-1.5 font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={connSubmitting || !connLocalIfaceId || !connRemoteIfaceId}
-                      className="flex-1 rounded bg-indigo-600 py-1.5 font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                      className="min-h-[38px] flex-1 rounded-lg bg-accent py-1.5 font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-60"
                     >
                       {connSubmitting ? 'Menghubungkan...' : 'Simpan Koneksi'}
                     </button>
@@ -1330,25 +1484,37 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
             </div>
           )}
 
-          {/* Modal Konfirmasi Arsip Koneksi */}
+          {/* Modal Arsip Koneksi */}
           {archiveConnTarget && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 space-y-4">
-                <h3 className="font-semibold text-slate-800 text-sm">Arsipkan Relasi Koneksi</h3>
-                <p className="text-xs text-slate-500">
-                  Relasi koneksi antara port <strong>{archiveConnTarget.endpointAInterface.name}</strong> dan <strong>{archiveConnTarget.endpointBInterface.name}</strong> akan diarsipkan dan tidak muncul di diagram/tampilan default.
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="arch-conn-title"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+            >
+              <div className="bg-elevated border border-line rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4 animate-modal">
+                <h3 id="arch-conn-title" className="font-bold text-ink text-sm">
+                  Arsipkan Relasi Koneksi
+                </h3>
+                <p className="text-xs text-ink-secondary">
+                  Relasi koneksi antara port{' '}
+                  <strong className="text-ink">{archiveConnTarget.endpointAInterface.name}</strong>{' '}
+                  dan{' '}
+                  <strong className="text-ink">{archiveConnTarget.endpointBInterface.name}</strong>{' '}
+                  akan diarsipkan dan tidak tampil di diagram topologi default.
                 </p>
                 <form onSubmit={handleArchiveConnectionConfirm} className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-slate-600 font-semibold mb-1">
+                    <label htmlFor="arch-conn-reason" className="block text-ink-secondary font-semibold mb-1">
                       Alasan Pengarsipan *
                     </label>
                     <textarea
+                      id="arch-conn-reason"
                       value={archiveConnReason}
                       onChange={(e) => setArchiveConnReason(e.target.value)}
-                      placeholder="Contoh: Kabel fisik dilepas untuk migrasi rack"
+                      placeholder="Contoh: Kabel dilepas untuk migrasi rak"
                       rows={3}
-                      className="w-full rounded border border-slate-300 p-2"
+                      className="w-full rounded-lg border border-line bg-canvas p-2.5 text-ink"
                       required
                     />
                   </div>
@@ -1356,14 +1522,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                     <button
                       type="button"
                       onClick={() => setArchiveConnTarget(null)}
-                      className="flex-1 rounded border border-slate-300 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+                      className="min-h-[38px] flex-1 rounded-lg border border-line bg-surface py-1.5 font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={archiveConnLoading || !archiveConnReason.trim()}
-                      className="flex-1 rounded bg-amber-600 py-1.5 font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+                      className="min-h-[38px] flex-1 rounded-lg bg-amber-600 py-1.5 font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
                     >
                       {archiveConnLoading ? 'Menyimpan...' : 'Arsipkan Koneksi'}
                     </button>
@@ -1377,22 +1543,23 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
       {/* TAB 5: DOCUMENTS */}
       {activeTab === 'documents' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
+        <div key="tab-documents" className="animate-enter rounded-xl border border-line bg-surface p-6 shadow-xs space-y-4 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Dokumen & Lampiran Perangkat</h3>
-              <p className="text-slate-500 mt-0.5">
+              <h2 className="text-sm font-bold text-ink">Dokumen & Lampiran Perangkat</h2>
+              <p className="text-ink-secondary mt-0.5">
                 Penyimpanan privat untuk foto fisik, diagram topologi, backup konfigurasi, dan dokumen garansi.
               </p>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={refreshDocuments}
                 disabled={docsLoading}
-                className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink disabled:opacity-50"
               >
-                {docsLoading ? 'Memuat...' : 'Muat Ulang'}
+                <IconRefresh className={`h-3.5 w-3.5 ${docsLoading ? 'animate-spin' : ''}`} />
+                <span>{docsLoading ? 'Memuat...' : 'Muat Ulang'}</span>
               </button>
               {canUploadDoc && (
                 <button
@@ -1402,19 +1569,22 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                     setUploadFile(null);
                     setShowUploadModal(true);
                   }}
-                  className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
                 >
-                  + Unggah Dokumen
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Unggah Dokumen</span>
                 </button>
               )}
             </div>
           </div>
 
           {documents.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500 space-y-2">
-              <p className="font-semibold text-slate-700">Belum ada dokumen yang diunggah untuk perangkat ini.</p>
-              <p className="text-[11px] text-slate-400">
-                Dokumen disimpan di direktori privat yang aman dengan checksum SHA-256 dan akses berizin (RBAC).
+            <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary space-y-2">
+              <p className="font-semibold text-ink">
+                Belum ada dokumen yang diunggah untuk perangkat ini.
+              </p>
+              <p className="text-[11px] text-ink-muted">
+                Dokumen disimpan pada direktori privat dengan verifikasi checksum SHA-256 dan kontrol RBAC.
               </p>
               {canUploadDoc && (
                 <div className="pt-2">
@@ -1425,7 +1595,7 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                       setUploadFile(null);
                       setShowUploadModal(true);
                     }}
-                    className="inline-flex items-center rounded bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    className="inline-flex min-h-[38px] items-center rounded-lg bg-accent-soft border border-accent/30 px-3.5 py-1.5 text-xs font-semibold text-accent-ink hover:opacity-90"
                   >
                     Unggah Dokumen Pertama
                   </button>
@@ -1433,68 +1603,73 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left divide-y divide-slate-200">
-                <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="w-full text-left divide-y divide-line">
+                <thead className="bg-subtle text-[11px] font-semibold text-ink-secondary uppercase tracking-wider">
                   <tr>
-                    <th className="py-2.5 px-3">Nama Berkas</th>
-                    <th className="py-2.5 px-3">Kategori</th>
-                    <th className="py-2.5 px-3">Ukuran</th>
-                    <th className="py-2.5 px-3">Checksum (SHA-256)</th>
-                    <th className="py-2.5 px-3">Pengunggah & Waktu</th>
-                    <th className="py-2.5 px-3 text-right">Aksi</th>
+                    <th className="py-2.5 px-3.5">Nama Berkas</th>
+                    <th className="py-2.5 px-3.5">Kategori</th>
+                    <th className="py-2.5 px-3.5">Ukuran</th>
+                    <th className="py-2.5 px-3.5">Checksum (SHA-256)</th>
+                    <th className="py-2.5 px-3.5">Pengunggah & Waktu</th>
+                    <th className="py-2.5 px-3.5 text-right">Tindakan</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                <tbody className="divide-y divide-line font-mono text-[11px]">
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-slate-50/70">
-                      <td className="py-2.5 px-3 font-medium text-slate-900 font-sans">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-slate-400">📄</span>
+                    <tr key={doc.id} className="hover:bg-subtle/60">
+                      <td className="py-2.5 px-3.5 font-medium text-ink font-sans">
+                        <div className="flex items-center gap-2">
+                          <IconFileDoc className="h-4 w-4 shrink-0 text-ink-muted" />
                           <span className="truncate max-w-xs" title={doc.originalFilename}>
                             {doc.originalFilename}
                           </span>
                         </div>
                         {doc.description && (
-                          <p className="text-[10px] text-slate-500 font-sans mt-0.5 ml-6">
+                          <p className="text-[10px] text-ink-muted font-sans mt-0.5 ml-6">
                             {doc.description}
                           </p>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 font-sans">
-                        <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                      <td className="py-2.5 px-3.5 font-sans">
+                        <span className="inline-block rounded-md bg-subtle px-2 py-0.5 text-[10px] font-medium text-ink border border-line">
                           {DOC_CATEGORY_MAP[doc.category] || doc.category}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">
+                      <td className="py-2.5 px-3.5 text-ink-secondary">
                         {formatBytes(doc.fileSize)}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-500">
-                        <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title={doc.checksum}>
-                          {doc.checksum.substring(0, 10)}...{doc.checksum.substring(doc.checksum.length - 6)}
+                      <td className="py-2.5 px-3.5 text-ink-muted">
+                        <span
+                          className="font-mono text-[10px] bg-subtle px-1.5 py-0.5 rounded border border-line"
+                          title={doc.checksum}
+                        >
+                          {doc.checksum.substring(0, 10)}...
+                          {doc.checksum.substring(doc.checksum.length - 6)}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-sans text-slate-600">
+                      <td className="py-2.5 px-3.5 font-sans text-ink-secondary">
                         <div>{doc.uploader ? doc.uploader.name : 'System'}</div>
-                        <div className="text-[10px] text-slate-400">
+                        <div className="text-[10px] text-ink-muted font-mono">
                           {new Date(doc.uploadedAt).toLocaleString('id-ID')}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-sans space-x-1.5">
+                      <td className="py-2.5 px-3.5 text-right font-sans space-x-1.5 whitespace-nowrap">
                         <a
                           href={`/api/documents/${doc.id}/download`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-block rounded bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+                          className="inline-flex items-center gap-1 rounded-md bg-accent-soft border border-accent/30 px-2.5 py-1 text-[11px] font-semibold text-accent-ink hover:opacity-90"
                         >
-                          ⬇ Unduh
+                          <IconDownload className="h-3.5 w-3.5" />
+                          <span>Unduh</span>
                         </a>
                         {(canUploadDoc || canEdit) && (
                           <button
                             type="button"
                             onClick={() => handleDeleteDocument(doc.id)}
                             disabled={docDeletingId === doc.id}
-                            className="inline-block rounded bg-rose-50 border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                            className="inline-block rounded-md bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2.5 py-1 text-[11px] font-medium text-rose-800 dark:text-rose-200 hover:bg-rose-100 disabled:opacity-50"
                           >
                             {docDeletingId === doc.id ? '...' : 'Hapus'}
                           </button>
@@ -1509,32 +1684,40 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
         </div>
       )}
 
-      {/* TAB 6: HISTORY / AUDIT LOG */}
+      {/* TAB 6: HISTORY */}
       {activeTab === 'history' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm space-y-4 text-xs">
-          <h3 className="text-sm font-semibold text-slate-800 border-b pb-2">
+        <div key="tab-history" className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4 text-xs">
+          <h2 className="text-sm font-bold text-ink border-b border-line pb-2.5">
             Riwayat Perubahan & Audit Trail Perangkat
-          </h3>
+          </h2>
 
           {history.length === 0 ? (
-            <p className="text-slate-400 text-center py-6">Belum ada catatan histori perubahan.</p>
+            <p className="text-ink-muted text-center py-6">
+              Belum ada catatan histori perubahan.
+            </p>
           ) : (
             <div className="space-y-3">
               {history.map((log) => (
-                <div key={log.id} className="rounded border border-slate-200 p-3 bg-slate-50 space-y-1.5">
+                <div
+                  key={log.id}
+                  className="rounded-lg border border-line p-3.5 bg-canvas space-y-1.5"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-indigo-700 uppercase tracking-wide">
+                    <span className="font-semibold text-accent-ink uppercase tracking-wide">
                       Aksi: {log.action}
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] font-mono text-ink-muted">
                       {new Date(log.createdAt).toLocaleString('id-ID')}
                     </span>
                   </div>
-                  <p className="text-slate-600">
-                    Oleh: <strong>{log.user ? `${log.user.name} (@${log.user.username})` : 'System'}</strong>
+                  <p className="text-ink-secondary">
+                    Oleh:{' '}
+                    <strong className="text-ink">
+                      {log.user ? `${log.user.name} (@${log.user.username})` : 'System'}
+                    </strong>
                   </p>
                   {log.action === 'ARCHIVE' && (
-                    <p className="text-amber-800 bg-amber-50 p-2 rounded border border-amber-200">
+                    <p className="text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 p-2 rounded border border-amber-200 dark:border-amber-900/60">
                       Alasan Arsip: <em>{log.afterData?.archiveReason || '-'}</em>
                     </p>
                   )}
@@ -1547,45 +1730,54 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
 
       {/* Archive Modal */}
       {showArchiveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="detail-archive-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-elevated p-5 shadow-2xl space-y-4 animate-modal">
+            <h3 id="detail-archive-title" className="text-sm font-bold text-ink">
               Konfirmasi Pengarsipan: {device.hostname}
             </h3>
-            <p className="text-xs text-slate-600">
-              Sesuai aturan inventaris, pengarsipan wajib menyertakan alasan. Perangkat tidak akan muncul di daftar aktif default.
+            <p className="text-xs text-ink-secondary">
+              Pengarsipan wajib menyertakan alasan. Perangkat tidak tampil pada daftar aktif default.
             </p>
             {device.inventoryStatus === 'ACTIVE' && (
-              <div className="rounded border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                ⚠️ Status saat ini adalah <strong>ACTIVE</strong>. Pastikan perangkat memang sudah tidak beroperasi di lapangan.
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 p-3 text-xs text-amber-900 dark:text-amber-200">
+                <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  Status saat ini adalah <strong>ACTIVE</strong>. Pastikan perangkat sudah tidak beroperasi di lapangan.
+                </span>
               </div>
             )}
             <form onSubmit={handleArchive} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700">
-                  Alasan Pengarsipan <span className="text-rose-500">*</span>
+                <label htmlFor="detail-arch-reason" className="block text-xs font-semibold text-ink-secondary">
+                  Alasan Pengarsipan <span className="text-rose-600">*</span>
                 </label>
                 <textarea
+                  id="detail-arch-reason"
                   required
                   rows={3}
-                  placeholder="Contoh: Perangkat decommissioned, diganti dengan unit baru."
+                  placeholder="Contoh: Perangkat diganti dengan unit baru."
                   value={archiveReason}
                   onChange={(e) => setArchiveReason(e.target.value)}
-                  className="mt-1 block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="mt-1.5 block w-full rounded-lg border border-line bg-canvas p-2.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none"
                 />
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowArchiveModal(false)}
-                  className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loadingArchive}
-                  className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                  className="min-h-[38px] rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
                 >
                   {loadingArchive ? 'Mengarsipkan...' : 'Konfirmasi Arsipkan'}
                 </button>
@@ -1595,57 +1787,65 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
         </div>
       )}
 
-      {/* Upload Document Modal (Fase 5) */}
+      {/* Upload Document Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl space-y-4 text-xs">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upload-doc-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-lg rounded-xl border border-line bg-elevated p-5 shadow-2xl space-y-4 text-xs animate-modal">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 id="upload-doc-title" className="text-sm font-bold text-ink">
                 Unggah Dokumen Perangkat: {device.hostname}
               </h3>
               <button
                 type="button"
+                aria-label="Tutup dialog"
                 onClick={() => setShowUploadModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
             {uploadError && (
-              <div className="rounded border border-rose-200 bg-rose-50 p-3 text-rose-800">
+              <div className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-3 text-rose-800 dark:text-rose-200">
                 {uploadError}
               </div>
             )}
 
             <form onSubmit={handleUploadDocument} className="space-y-3.5">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Pilih Berkas File <span className="text-rose-500">*</span>
+                <label htmlFor="upload-doc-file" className="block font-semibold text-ink-secondary mb-1">
+                  Pilih Berkas File <span className="text-rose-600">*</span>
                 </label>
                 <input
+                  id="upload-doc-file"
                   type="file"
                   required
                   onChange={(e) => {
                     const f = e.target.files?.[0] || null;
                     setUploadFile(f);
                   }}
-                  className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  className="block w-full text-xs text-ink-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-accent-soft file:text-accent-ink hover:file:opacity-90 cursor-pointer"
                 />
-                <p className="mt-1 text-[10px] text-slate-400">
-                  Didukung: PDF, PNG, JPG, WEBP, TXT, LOG, CFG, CSV, XLSX, DOCX, ZIP (Maks. 15 MB). Format executable, SVG, dan HTML dilarang.
+                <p className="mt-1 text-[10px] text-ink-muted">
+                  Didukung: PDF, PNG, JPG, WEBP, TXT, LOG, CFG, CSV, XLSX, DOCX, ZIP (Maks. 15 MB). Executable, SVG, dan HTML ditolak.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
-                    Kategori Dokumen <span className="text-rose-500">*</span>
+                  <label htmlFor="upload-doc-cat" className="block font-semibold text-ink-secondary mb-1">
+                    Kategori Dokumen <span className="text-rose-600">*</span>
                   </label>
                   <select
+                    id="upload-doc-cat"
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value)}
-                    className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="min-h-[38px] block w-full rounded-lg border border-line bg-canvas p-2 text-xs text-ink"
                   >
                     <option value="photo">Foto Fisik Perangkat</option>
                     <option value="topology_diagram">Diagram Topologi</option>
@@ -1658,13 +1858,14 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label htmlFor="upload-doc-sens" className="block font-semibold text-ink-secondary mb-1">
                     Tingkat Sensitivitas
                   </label>
                   <select
+                    id="upload-doc-sens"
                     value={uploadSensitivity}
                     onChange={(e) => setUploadSensitivity(e.target.value)}
-                    className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="min-h-[38px] block w-full rounded-lg border border-line bg-canvas p-2 text-xs text-ink"
                   >
                     <option value="internal">Internal (Default)</option>
                     <option value="confidential">Confidential (Rahasia)</option>
@@ -1675,30 +1876,31 @@ export function DeviceDetailClient({ device, history, canEdit, canArchive, canUp
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Keterangan / Catatan Dokumen (Opsional)
+                <label htmlFor="upload-doc-desc" className="block font-semibold text-ink-secondary mb-1">
+                  Keterangan Dokumen (Opsional)
                 </label>
                 <textarea
+                  id="upload-doc-desc"
                   rows={2}
-                  placeholder="Contoh: Backup startup-config sebelum upgrade firmware versi 7.12"
+                  placeholder="Contoh: Backup konfigurasi sebelum pembaruan firmware"
                   value={uploadDescription}
                   onChange={(e) => setUploadDescription(e.target.value)}
-                  className="block w-full rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="block w-full rounded-lg border border-line bg-canvas p-2.5 text-xs text-ink placeholder-ink-muted"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-2 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={uploadSubmitting || !uploadFile}
-                  className="rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {uploadSubmitting ? 'Mengunggah...' : 'Unggah Sekarang'}
                 </button>

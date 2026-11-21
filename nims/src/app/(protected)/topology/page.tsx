@@ -27,12 +27,12 @@ export default async function TopologyPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      <div className="animate-enter">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
           Topologi Relasi Jaringan
         </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Visualisasi graf keterhubungan infrastruktur berdasarkan dokumentasi port dan relasi aktif (PRD §5.5 & §6.4).
+        <p className="text-xs text-ink-secondary mt-1">
+          Visualisasi graf keterhubungan infrastruktur berdasarkan dokumentasi port dan relasi aktif antarperangkat.
         </p>
       </div>
 

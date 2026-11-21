@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { IconPlus, IconAlertTriangle, IconCheckCircle, IconTrash } from '@/components/Icons';
 
 interface SiteItem {
   id: number;
@@ -63,15 +64,31 @@ export function MasterDataClient({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Form states
   const [showAddSite, setShowAddSite] = useState(false);
-  const [siteForm, setSiteForm] = useState({ siteCode: '', name: '', siteType: 'pop', city: '', address: '' });
+  const [siteForm, setSiteForm] = useState({
+    siteCode: '',
+    name: '',
+    siteType: 'pop',
+    city: '',
+    address: '',
+  });
 
   const [showAddVendor, setShowAddVendor] = useState(false);
-  const [vendorForm, setVendorForm] = useState({ name: '', website: '', supportContact: '', notes: '' });
+  const [vendorForm, setVendorForm] = useState({
+    name: '',
+    website: '',
+    supportContact: '',
+    notes: '',
+  });
 
   const [showAddModel, setShowAddModel] = useState(false);
-  const [modelForm, setModelForm] = useState({ modelName: '', modelCode: '', vendorId: '', categoryId: '', description: '' });
+  const [modelForm, setModelForm] = useState({
+    modelName: '',
+    modelCode: '',
+    vendorId: '',
+    categoryId: '',
+    description: '',
+  });
 
   const clearAlerts = () => {
     setErrorMsg(null);
@@ -172,7 +189,13 @@ export function MasterDataClient({
       if (!res.ok) throw new Error(data.message || 'Gagal menambahkan model');
       setSuccessMsg(data.message);
       setShowAddModel(false);
-      setModelForm({ modelName: '', modelCode: '', vendorId: '', categoryId: '', description: '' });
+      setModelForm({
+        modelName: '',
+        modelCode: '',
+        vendorId: '',
+        categoryId: '',
+        description: '',
+      });
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -196,111 +219,161 @@ export function MasterDataClient({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Feedback Alerts */}
+    <div className="space-y-5">
       {errorMsg && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <p className="font-medium">Perhatian</p>
-          <p>{errorMsg}</p>
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-4 text-xs sm:text-sm text-rose-900 dark:text-rose-200"
+        >
+          <IconAlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+          <div>
+            <p className="font-semibold">Perhatian</p>
+            <p>{errorMsg}</p>
+          </div>
         </div>
       )}
+
       {successMsg && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          <p>{successMsg}</p>
+        <div
+          role="status"
+          className="flex items-center gap-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/60 p-4 text-xs sm:text-sm text-emerald-900 dark:text-emerald-200"
+        >
+          <IconCheckCircle className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <p className="font-medium">{successMsg}</p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => { setTab('sites'); clearAlerts(); }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-            tab === 'sites'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Sites / Lokasi ({sites.length})
-        </button>
-        <button
-          onClick={() => { setTab('vendors'); clearAlerts(); }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-            tab === 'vendors'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Vendors ({vendors.length})
-        </button>
-        <button
-          onClick={() => { setTab('categories'); clearAlerts(); }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-            tab === 'categories'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Kategori ({categories.length})
-        </button>
-        <button
-          onClick={() => { setTab('models'); clearAlerts(); }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-            tab === 'models'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Model Perangkat ({models.length})
-        </button>
+      <div className="border-b border-line overflow-x-auto">
+        <div role="tablist" aria-label="Kategori Master Data" className="-mb-px flex space-x-6">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'sites'}
+            onClick={() => {
+              setTab('sites');
+              clearAlerts();
+            }}
+            className={`min-h-[42px] px-1 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors duration-150 ${
+              tab === 'sites'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:text-ink'
+            }`}
+          >
+            Sites / Lokasi ({sites.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'vendors'}
+            onClick={() => {
+              setTab('vendors');
+              clearAlerts();
+            }}
+            className={`min-h-[42px] px-1 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors duration-150 ${
+              tab === 'vendors'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:text-ink'
+            }`}
+          >
+            Vendors ({vendors.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'categories'}
+            onClick={() => {
+              setTab('categories');
+              clearAlerts();
+            }}
+            className={`min-h-[42px] px-1 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors duration-150 ${
+              tab === 'categories'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:text-ink'
+            }`}
+          >
+            Kategori ({categories.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'models'}
+            onClick={() => {
+              setTab('models');
+              clearAlerts();
+            }}
+            className={`min-h-[42px] px-1 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors duration-150 ${
+              tab === 'models'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:text-ink'
+            }`}
+          >
+            Model Perangkat ({models.length})
+          </button>
+        </div>
       </div>
 
       {/* SITES TAB */}
       {tab === 'sites' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Daftar Lokasi & Site</h2>
+        <div key="tab-sites" className="animate-enter space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-ink">Daftar Lokasi & Site</h2>
             {canManageSites && (
               <button
+                type="button"
                 onClick={() => setShowAddSite(!showAddSite)}
-                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
-                {showAddSite ? 'Batal' : '+ Tambah Site'}
+                {!showAddSite && <IconPlus className="h-3.5 w-3.5" />}
+                <span>{showAddSite ? 'Batal' : 'Tambah Site'}</span>
               </button>
             )}
           </div>
 
           {showAddSite && (
-            <form onSubmit={handleCreateSite} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800">Form Tambah Site</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <form
+              onSubmit={handleCreateSite}
+              className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
+            >
+              <h3 className="text-sm font-bold text-ink">Form Tambah Site</h3>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Kode Site *</label>
+                  <label htmlFor="site-code" className="block text-xs font-semibold text-ink-secondary">
+                    Kode Site *
+                  </label>
                   <input
+                    id="site-code"
                     type="text"
                     required
                     placeholder="Contoh: POP-SBY-01"
                     value={siteForm.siteCode}
                     onChange={(e) => setSiteForm({ ...siteForm, siteCode: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Nama Site *</label>
+                  <label htmlFor="site-name" className="block text-xs font-semibold text-ink-secondary">
+                    Nama Site *
+                  </label>
                   <input
+                    id="site-name"
                     type="text"
                     required
                     placeholder="POP Surabaya Barat"
                     value={siteForm.name}
                     onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Tipe Site</label>
+                  <label htmlFor="site-type" className="block text-xs font-semibold text-ink-secondary">
+                    Tipe Site
+                  </label>
                   <select
+                    id="site-type"
                     value={siteForm.siteType}
                     onChange={(e) => setSiteForm({ ...siteForm, siteType: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="pop">POP (Point of Presence)</option>
                     <option value="dc">Data Center</option>
@@ -310,38 +383,44 @@ export function MasterDataClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Kota</label>
+                  <label htmlFor="site-city" className="block text-xs font-semibold text-ink-secondary">
+                    Kota
+                  </label>
                   <input
+                    id="site-city"
                     type="text"
                     placeholder="Surabaya"
                     value={siteForm.city}
                     onChange={(e) => setSiteForm({ ...siteForm, city: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-slate-600">Alamat</label>
+                  <label htmlFor="site-addr" className="block text-xs font-semibold text-ink-secondary">
+                    Alamat
+                  </label>
                   <input
+                    id="site-addr"
                     type="text"
                     placeholder="Jl. Raya No. 12"
                     value={siteForm.address}
                     onChange={(e) => setSiteForm({ ...siteForm, address: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAddSite(false)}
-                  className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {loading ? 'Menyimpan...' : 'Simpan Site'}
                 </button>
@@ -349,132 +428,157 @@ export function MasterDataClient({
             </form>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Kode Site</th>
-                  <th className="px-4 py-3">Nama</th>
-                  <th className="px-4 py-3">Tipe</th>
-                  <th className="px-4 py-3">Kota</th>
-                  <th className="px-4 py-3">Ruang / Rak</th>
-                  <th className="px-4 py-3">Status</th>
-                  {canManageSites && <th className="px-4 py-3 text-right">Aksi</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {sites.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-medium text-indigo-700">{s.siteCode}</td>
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
-                    <td className="px-4 py-3 uppercase text-slate-500">{s.siteType}</td>
-                    <td className="px-4 py-3 text-slate-600">{s.city || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {s.rooms.length} ruang / {s._count.racks} rak
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                        {s.status}
-                      </span>
-                    </td>
-                    {canManageSites && (
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteSite(s.id, s.name)}
-                          className="text-rose-600 hover:text-rose-800 font-medium"
-                        >
-                          Hapus
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {sites.length === 0 && (
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-line text-left text-xs">
+                <thead className="bg-subtle text-ink-secondary font-semibold uppercase text-[11px]">
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                      Belum ada data site terdaftar.
-                    </td>
+                    <th className="px-4 py-3">Kode Site</th>
+                    <th className="px-4 py-3">Nama</th>
+                    <th className="px-4 py-3">Tipe</th>
+                    <th className="px-4 py-3">Kota</th>
+                    <th className="px-4 py-3">Ruang / Rak</th>
+                    <th className="px-4 py-3">Status</th>
+                    {canManageSites && <th className="px-4 py-3 text-right">Tindakan</th>}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line text-ink">
+                  {sites.map((s) => (
+                    <tr key={s.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="px-4 py-3 font-mono font-semibold text-accent-ink">
+                        {s.siteCode}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{s.name}</td>
+                      <td className="px-4 py-3 uppercase font-mono text-ink-muted">{s.siteType}</td>
+                      <td className="px-4 py-3 text-ink-secondary">{s.city || '-'}</td>
+                      <td className="px-4 py-3 text-ink-secondary tabular-nums-data">
+                        {s.rooms.length} ruang / {s._count.racks} rak
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-md bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 dark:text-emerald-300">
+                          {s.status}
+                        </span>
+                      </td>
+                      {canManageSites && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSite(s.id, s.name)}
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                          >
+                            <IconTrash className="h-3.5 w-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {sites.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-ink-secondary">
+                        Belum ada data site terdaftar.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* VENDORS TAB */}
       {tab === 'vendors' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Daftar Vendor Perangkat</h2>
+        <div key="tab-vendors" className="animate-enter space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-ink">Daftar Vendor Perangkat</h2>
             {canManageVendors && (
               <button
+                type="button"
                 onClick={() => setShowAddVendor(!showAddVendor)}
-                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
-                {showAddVendor ? 'Batal' : '+ Tambah Vendor'}
+                {!showAddVendor && <IconPlus className="h-3.5 w-3.5" />}
+                <span>{showAddVendor ? 'Batal' : 'Tambah Vendor'}</span>
               </button>
             )}
           </div>
 
           {showAddVendor && (
-            <form onSubmit={handleCreateVendor} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800">Form Tambah Vendor</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <form
+              onSubmit={handleCreateVendor}
+              className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
+            >
+              <h3 className="text-sm font-bold text-ink">Form Tambah Vendor</h3>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Nama Vendor *</label>
+                  <label htmlFor="vendor-name" className="block text-xs font-semibold text-ink-secondary">
+                    Nama Vendor *
+                  </label>
                   <input
+                    id="vendor-name"
                     type="text"
                     required
                     placeholder="Contoh: Juniper Networks"
                     value={vendorForm.name}
                     onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Website</label>
+                  <label htmlFor="vendor-web" className="block text-xs font-semibold text-ink-secondary">
+                    Website
+                  </label>
                   <input
+                    id="vendor-web"
                     type="url"
                     placeholder="https://www.juniper.net"
                     value={vendorForm.website}
                     onChange={(e) => setVendorForm({ ...vendorForm, website: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Kontak Support</label>
+                  <label htmlFor="vendor-contact" className="block text-xs font-semibold text-ink-secondary">
+                    Kontak Support
+                  </label>
                   <input
+                    id="vendor-contact"
                     type="text"
                     placeholder="support@juniper.net"
                     value={vendorForm.supportContact}
-                    onChange={(e) => setVendorForm({ ...vendorForm, supportContact: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    onChange={(e) =>
+                      setVendorForm({ ...vendorForm, supportContact: e.target.value })
+                    }
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Catatan</label>
+                  <label htmlFor="vendor-notes" className="block text-xs font-semibold text-ink-secondary">
+                    Catatan
+                  </label>
                   <input
+                    id="vendor-notes"
                     type="text"
                     placeholder="Catatan tambahan"
                     value={vendorForm.notes}
                     onChange={(e) => setVendorForm({ ...vendorForm, notes: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAddVendor(false)}
-                  className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {loading ? 'Menyimpan...' : 'Simpan Vendor'}
                 </button>
@@ -482,178 +586,215 @@ export function MasterDataClient({
             </form>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Nama Vendor</th>
-                  <th className="px-4 py-3">Website</th>
-                  <th className="px-4 py-3">Kontak Support</th>
-                  <th className="px-4 py-3">Model Terdaftar</th>
-                  {canManageVendors && <th className="px-4 py-3 text-right">Aksi</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {vendors.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-900">{v.name}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {v.website ? (
-                        <a href={v.website} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
-                          {v.website}
-                        </a>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{v.supportContact || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium">
-                        {v._count.models} model
-                      </span>
-                    </td>
-                    {canManageVendors && (
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteVendor(v.id, v.name)}
-                          className="text-rose-600 hover:text-rose-800 font-medium"
-                        >
-                          Hapus
-                        </button>
-                      </td>
-                    )}
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-line text-left text-xs">
+                <thead className="bg-subtle text-ink-secondary font-semibold uppercase text-[11px]">
+                  <tr>
+                    <th className="px-4 py-3">Nama Vendor</th>
+                    <th className="px-4 py-3">Website</th>
+                    <th className="px-4 py-3">Kontak Support</th>
+                    <th className="px-4 py-3">Model Terdaftar</th>
+                    {canManageVendors && <th className="px-4 py-3 text-right">Tindakan</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line text-ink">
+                  {vendors.map((v) => (
+                    <tr key={v.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="px-4 py-3 font-semibold text-ink">{v.name}</td>
+                      <td className="px-4 py-3 text-ink-secondary">
+                        {v.website ? (
+                          <a
+                            href={v.website}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent-ink hover:underline"
+                          >
+                            {v.website}
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-ink-secondary">{v.supportContact || '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-md bg-subtle px-2 py-0.5 text-xs font-mono font-medium text-ink tabular-nums-data">
+                          {v._count.models} model
+                        </span>
+                      </td>
+                      {canManageVendors && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVendor(v.id, v.name)}
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                          >
+                            <IconTrash className="h-3.5 w-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* CATEGORIES TAB */}
       {tab === 'categories' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Kategori Perangkat Jaringan</h2>
-          </div>
+        <div key="tab-categories" className="animate-enter space-y-4">
+          <h2 className="text-lg font-bold text-ink">Kategori Perangkat Jaringan</h2>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Kode Kategori</th>
-                  <th className="px-4 py-3">Nama Kategori</th>
-                  <th className="px-4 py-3">Deskripsi</th>
-                  <th className="px-4 py-3">Model Terdaftar</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {categories.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-medium text-slate-700">{c.code}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-900">{c.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{c.description || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">{c._count.models} model</td>
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-line text-left text-xs">
+                <thead className="bg-subtle text-ink-secondary font-semibold uppercase text-[11px]">
+                  <tr>
+                    <th className="px-4 py-3">Kode Kategori</th>
+                    <th className="px-4 py-3">Nama Kategori</th>
+                    <th className="px-4 py-3">Deskripsi</th>
+                    <th className="px-4 py-3">Model Terdaftar</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line text-ink">
+                  {categories.map((c) => (
+                    <tr key={c.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="px-4 py-3 font-mono font-medium text-ink-secondary">
+                        {c.code}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-ink">{c.name}</td>
+                      <td className="px-4 py-3 text-ink-secondary">{c.description || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-ink-secondary tabular-nums-data">
+                        {c._count.models} model
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODELS TAB */}
       {tab === 'models' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Model Perangkat</h2>
+        <div key="tab-models" className="animate-enter space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-ink">Model Perangkat</h2>
             {canManageVendors && (
               <button
+                type="button"
                 onClick={() => setShowAddModel(!showAddModel)}
-                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
-                {showAddModel ? 'Batal' : '+ Tambah Model'}
+                {!showAddModel && <IconPlus className="h-3.5 w-3.5" />}
+                <span>{showAddModel ? 'Batal' : 'Tambah Model'}</span>
               </button>
             )}
           </div>
 
           {showAddModel && (
-            <form onSubmit={handleCreateModel} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800">Form Tambah Model</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <form
+              onSubmit={handleCreateModel}
+              className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
+            >
+              <h3 className="text-sm font-bold text-ink">Form Tambah Model</h3>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Vendor *</label>
+                  <label htmlFor="model-vendor" className="block text-xs font-semibold text-ink-secondary">
+                    Vendor *
+                  </label>
                   <select
+                    id="model-vendor"
                     required
                     value={modelForm.vendorId}
                     onChange={(e) => setModelForm({ ...modelForm, vendorId: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">Pilih Vendor</option>
                     {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Kategori *</label>
+                  <label htmlFor="model-cat" className="block text-xs font-semibold text-ink-secondary">
+                    Kategori *
+                  </label>
                   <select
+                    id="model-cat"
                     required
                     value={modelForm.categoryId}
                     onChange={(e) => setModelForm({ ...modelForm, categoryId: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">Pilih Kategori</option>
                     {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Nama Model *</label>
+                  <label htmlFor="model-name" className="block text-xs font-semibold text-ink-secondary">
+                    Nama Model *
+                  </label>
                   <input
+                    id="model-name"
                     type="text"
                     required
                     placeholder="Cloud Core Router 1036"
                     value={modelForm.modelName}
                     onChange={(e) => setModelForm({ ...modelForm, modelName: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600">Kode Model *</label>
+                  <label htmlFor="model-code" className="block text-xs font-semibold text-ink-secondary">
+                    Kode Model *
+                  </label>
                   <input
+                    id="model-code"
                     type="text"
                     required
                     placeholder="CCR1036-8G-2S+"
                     value={modelForm.modelCode}
                     onChange={(e) => setModelForm({ ...modelForm, modelCode: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-slate-600">Deskripsi / Spesifikasi</label>
+                  <label htmlFor="model-desc" className="block text-xs font-semibold text-ink-secondary">
+                    Deskripsi / Spesifikasi
+                  </label>
                   <input
+                    id="model-desc"
                     type="text"
                     placeholder="Spesifikasi port atau ringkasan hardware"
                     value={modelForm.description}
                     onChange={(e) => setModelForm({ ...modelForm, description: e.target.value })}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAddModel(false)}
-                  className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {loading ? 'Menyimpan...' : 'Simpan Model'}
                 </button>
@@ -661,44 +802,50 @@ export function MasterDataClient({
             </form>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Kode Model</th>
-                  <th className="px-4 py-3">Nama Model</th>
-                  <th className="px-4 py-3">Vendor</th>
-                  <th className="px-4 py-3">Kategori</th>
-                  <th className="px-4 py-3">Deskripsi</th>
-                  {canManageVendors && <th className="px-4 py-3 text-right">Aksi</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {models.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-medium text-indigo-700">{m.modelCode}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-900">{m.modelName}</td>
-                    <td className="px-4 py-3 text-slate-700">{m.vendor.name}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs">
-                        {m.category.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{m.description || '-'}</td>
-                    {canManageVendors && (
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteModel(m.id, m.modelName)}
-                          className="text-rose-600 hover:text-rose-800 font-medium"
-                        >
-                          Hapus
-                        </button>
-                      </td>
-                    )}
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-line text-left text-xs">
+                <thead className="bg-subtle text-ink-secondary font-semibold uppercase text-[11px]">
+                  <tr>
+                    <th className="px-4 py-3">Kode Model</th>
+                    <th className="px-4 py-3">Nama Model</th>
+                    <th className="px-4 py-3">Vendor</th>
+                    <th className="px-4 py-3">Kategori</th>
+                    <th className="px-4 py-3">Deskripsi</th>
+                    {canManageVendors && <th className="px-4 py-3 text-right">Tindakan</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line text-ink">
+                  {models.map((m) => (
+                    <tr key={m.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="px-4 py-3 font-mono font-semibold text-accent-ink">
+                        {m.modelCode}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-ink">{m.modelName}</td>
+                      <td className="px-4 py-3 text-ink-secondary">{m.vendor.name}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-md bg-subtle px-2 py-0.5 text-xs text-ink">
+                          {m.category.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-ink-secondary">{m.description || '-'}</td>
+                      {canManageVendors && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteModel(m.id, m.modelName)}
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                          >
+                            <IconTrash className="h-3.5 w-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

@@ -56,11 +56,11 @@ export default async function EditDevicePage(props: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      <div className="animate-enter">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
           Ubah Data Perangkat: {device.hostname}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-secondary mt-1">
           Perbarui atribut identitas, lokasi, atau status perangkat inventaris.
         </p>
       </div>

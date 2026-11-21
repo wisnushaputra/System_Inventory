@@ -1,6 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import {
+  IconPlus,
+  IconSearch,
+  IconCheckCircle,
+  IconAlertTriangle,
+  IconEdit,
+  IconKey,
+  IconTrash,
+  IconClose,
+} from '@/components/Icons';
 
 interface RoleOption {
   id: number;
@@ -77,6 +87,21 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
+  useEffect(() => {
+    const anyModal = showAddModal || showEditModal || showResetModal || showDeleteModal;
+    if (!anyModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAddModal(false);
+        setShowEditModal(false);
+        setShowResetModal(false);
+        setShowDeleteModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showAddModal, showEditModal, showResetModal, showDeleteModal]);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -108,7 +133,6 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Flash message auto clear
   useEffect(() => {
     if (successMsg) {
       const timer = setTimeout(() => setSuccessMsg(null), 4000);
@@ -149,7 +173,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
         body: JSON.stringify({
           name: addForm.name,
@@ -199,7 +223,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
         body: JSON.stringify({
           name: editForm.name,
@@ -252,7 +276,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
         body: JSON.stringify({
           newPassword: resetPassword,
@@ -288,7 +312,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
       const res = await fetch(`/api/users/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: {
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
       });
 
@@ -310,70 +334,69 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
   const getRoleBadgeClass = (roleName: string) => {
     switch (roleName.toLowerCase()) {
       case 'admin':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return 'bg-accent-soft text-accent-ink border-accent/30';
       case 'network engineer':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-sky-50 text-sky-900 border-sky-200 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800';
       case 'operator noc':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800';
       case 'supervisor':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
+        return 'bg-subtle text-ink-secondary border-line';
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Banner / Heading */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="animate-enter flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manajemen Pengguna</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Manajemen Pengguna</h1>
+          <p className="mt-1 text-sm text-ink-secondary">
             Kelola akun personel, pembagian peran kerja, status aktif, dan reset kata sandi akses sistem.
           </p>
         </div>
         <button
+          type="button"
           onClick={handleOpenAdd}
-          className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs sm:text-sm font-semibold text-accent-fg shadow-xs transition-[background-color,transform] duration-150 hover:bg-accent-hover active:scale-[0.97]"
         >
-          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Tambah Pengguna
+          <IconPlus className="h-4 w-4" />
+          <span>Tambah Pengguna</span>
         </button>
       </div>
 
-      {/* Global Alerts */}
       {successMsg && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-            </svg>
-            <span className="font-medium">{successMsg}</span>
-          </div>
+        <div
+          role="status"
+          className="animate-enter rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/60 p-4 text-xs sm:text-sm text-emerald-900 dark:text-emerald-200 shadow-xs flex items-center gap-2.5"
+        >
+          <IconCheckCircle className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-medium">{successMsg}</span>
         </div>
       )}
 
       {errorMsg && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 shadow-sm">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-            </svg>
-            <span>{errorMsg}</span>
-          </div>
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-4 text-xs sm:text-sm text-rose-900 dark:text-rose-200 shadow-xs flex items-center gap-2.5"
+        >
+          <IconAlertTriangle className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      {/* Filter Bar */}
+      <div className="animate-enter stagger-1 rounded-xl border border-line bg-surface p-4 shadow-xs">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
-            <label htmlFor="search-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label
+              htmlFor="search-input"
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary"
+            >
               Pencarian
             </label>
-            <div className="relative mt-1">
+            <div className="relative mt-1.5">
+              <IconSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted" />
               <input
                 id="search-input"
                 type="text"
@@ -383,23 +406,17 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                   setQ(e.target.value);
                   setPage(1);
                 }}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 pl-9 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="min-h-[42px] w-full rounded-lg border border-line bg-canvas pl-9 pr-3.5 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
-              <svg
-                className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
             </div>
           </div>
 
           <div>
-            <label htmlFor="role-select" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Filter Peran (Role)
+            <label
+              htmlFor="role-select"
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary"
+            >
+              Filter Peran
             </label>
             <select
               id="role-select"
@@ -408,7 +425,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                 setRoleIdFilter(e.target.value);
                 setPage(1);
               }}
-              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1.5 min-h-[42px] w-full rounded-lg border border-line bg-canvas px-3 text-sm text-ink focus:border-accent focus:outline-none"
             >
               <option value="">Semua Peran</option>
               {initialRoles.map((r) => (
@@ -420,7 +437,10 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
           </div>
 
           <div>
-            <label htmlFor="status-select" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label
+              htmlFor="status-select"
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary"
+            >
               Status Akun
             </label>
             <select
@@ -430,7 +450,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                 setIsActiveFilter(e.target.value);
                 setPage(1);
               }}
-              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1.5 min-h-[42px] w-full rounded-lg border border-line bg-canvas px-3 text-sm text-ink focus:border-accent focus:outline-none"
             >
               <option value="">Semua Status</option>
               <option value="true">Aktif</option>
@@ -441,121 +461,132 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
       </div>
 
       {/* Users Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="animate-enter stagger-2 overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <table className="min-w-full divide-y divide-line text-left text-sm">
+            <thead className="bg-subtle text-xs font-semibold uppercase tracking-wider text-ink-secondary">
               <tr>
-                <th scope="col" className="px-6 py-3.5">Nama & Username</th>
-                <th scope="col" className="px-6 py-3.5">Email</th>
-                <th scope="col" className="px-6 py-3.5">Peran</th>
-                <th scope="col" className="px-6 py-3.5">Status</th>
-                <th scope="col" className="px-6 py-3.5">Terakhir Login</th>
-                <th scope="col" className="px-6 py-3.5 text-right">Tindakan</th>
+                <th scope="col" className="px-5 py-3.5">
+                  Nama & Username
+                </th>
+                <th scope="col" className="px-5 py-3.5">
+                  Email
+                </th>
+                <th scope="col" className="px-5 py-3.5">
+                  Peran
+                </th>
+                <th scope="col" className="px-5 py-3.5">
+                  Status
+                </th>
+                <th scope="col" className="px-5 py-3.5">
+                  Terakhir Login
+                </th>
+                <th scope="col" className="px-5 py-3.5 text-right">
+                  Tindakan
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-line bg-surface">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                    <div className="inline-flex items-center gap-2">
-                      <svg className="h-5 w-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      <span>Memuat data pengguna...</span>
-                    </div>
+                  <td colSpan={6} className="px-6 py-12 text-center text-ink-secondary">
+                    Memuat data pengguna...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                    Tidak ada data pengguna yang sesuai dengan filter pencarian.
+                  <td colSpan={6} className="px-6 py-12 text-center text-ink-secondary">
+                    Tidak ada data pengguna yang cocok dengan filter pencarian.
                   </td>
                 </tr>
               ) : (
                 users.map((user) => {
                   const isSelf = user.id === currentUserId;
                   return (
-                    <tr key={user.id} className="transition hover:bg-slate-50/80">
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                              {user.name}
-                              {isSelf && (
-                                <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                                  Akun Anda
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-slate-500">@{user.username}</div>
-                          </div>
+                    <tr key={user.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="whitespace-nowrap px-5 py-4">
+                        <div className="font-semibold text-ink flex items-center gap-2">
+                          <span>{user.name}</span>
+                          {isSelf && (
+                            <span className="inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-ink">
+                              Akun Anda
+                            </span>
+                          )}
                         </div>
+                        <div className="font-mono text-xs text-ink-muted">@{user.username}</div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-slate-600">
-                        {user.email || <span className="text-slate-400 italic">Tidak ada email</span>}
+                      <td className="whitespace-nowrap px-5 py-4 text-xs text-ink-secondary">
+                        {user.email || <span className="text-ink-muted italic">Tidak ada email</span>}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getRoleBadgeClass(
+                          className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${getRoleBadgeClass(
                             user.role.name
                           )}`}
                         >
                           {user.role.name}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         {user.isActive ? (
-                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 text-xs font-semibold text-emerald-900 dark:text-emerald-300">
                             Aktif
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                          <span className="inline-flex items-center rounded-md bg-subtle px-2.5 py-0.5 text-xs font-semibold text-ink-secondary">
                             Nonaktif
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs text-slate-500">
+                      <td className="whitespace-nowrap px-5 py-4 text-xs font-mono text-ink-muted tabular-nums-data">
                         {user.lastLoginAt ? (
                           new Date(user.lastLoginAt).toLocaleString('id-ID', {
                             dateStyle: 'medium',
                             timeStyle: 'short',
                           })
                         ) : (
-                          <span className="italic text-slate-400">Belum pernah login</span>
+                          <span className="font-sans italic text-ink-muted">Belum pernah login</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="whitespace-nowrap px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
+                            type="button"
                             onClick={() => handleOpenEdit(user)}
-                            className="rounded px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            className="inline-flex items-center gap-1 rounded-md border border-line bg-canvas px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-subtle"
                             title="Edit Data Pengguna"
                           >
-                            Edit
+                            <IconEdit className="h-3.5 w-3.5" />
+                            <span>Edit</span>
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleOpenReset(user)}
-                            className="rounded px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2.5 py-1.5 text-xs font-semibold text-accent-ink hover:opacity-90"
                             title="Reset Kata Sandi"
                           >
-                            Reset Password
+                            <IconKey className="h-3.5 w-3.5" />
+                            <span>Reset Password</span>
                           </button>
                           {isSelf ? (
-                            <span
-                              className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-medium text-slate-300"
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-muted opacity-40"
                               title="Anda tidak dapat menghapus akun Anda sendiri"
                             >
-                              Hapus
-                            </span>
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
+                            </button>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => handleOpenDelete(user)}
-                              className="rounded px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                              className="inline-flex items-center gap-1 rounded-md bg-rose-50 dark:bg-rose-950/60 px-2.5 py-1.5 text-xs font-medium text-rose-800 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/60"
                               title="Hapus Pengguna"
                             >
-                              Hapus
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
                             </button>
                           )}
                         </div>
@@ -568,26 +599,27 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-500">
-          <div>
-            Total <span className="font-semibold text-slate-800">{totalCount}</span> pengguna
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-subtle/50 px-5 py-3 text-xs text-ink-secondary">
+          <div className="tabular-nums-data">
+            Total <span className="font-semibold text-ink">{totalCount}</span> pengguna
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               disabled={page <= 1 || loading}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              className="min-h-[36px] rounded-md border border-line bg-surface px-3 py-1 font-medium text-ink hover:bg-subtle disabled:opacity-40"
             >
               Sebelumnya
             </button>
-            <span>
+            <span className="tabular-nums-data">
               Halaman {page} dari {totalPages}
             </span>
             <button
+              type="button"
               disabled={page >= totalPages || loading}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              className="min-h-[36px] rounded-md border border-line bg-surface px-3 py-1 font-medium text-ink hover:bg-subtle disabled:opacity-40"
             >
               Selanjutnya
             </button>
@@ -597,69 +629,89 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
 
       {/* Modal: Tambah Pengguna */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-900">Tambah Pengguna Baru</h2>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-user-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-lg rounded-xl border border-line bg-elevated p-6 shadow-2xl animate-modal">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h2 id="add-user-title" className="text-lg font-bold text-ink">
+                Tambah Pengguna Baru
+              </h2>
               <button
+                type="button"
+                aria-label="Tutup dialog"
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                <span className="sr-only">Tutup</span>
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
             {addError && (
-              <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">
+              <div className="mt-4 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-3 text-xs text-rose-800 dark:text-rose-200">
                 {addError}
               </div>
             )}
 
             <form onSubmit={handleSubmitAdd} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Nama Lengkap *</label>
+                <label htmlFor="add-name" className="block text-xs font-semibold text-ink-secondary">
+                  Nama Lengkap *
+                </label>
                 <input
+                  id="add-name"
                   type="text"
                   required
                   value={addForm.name}
                   onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                  placeholder="Contoh: Budi Santoso"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Nama lengkap staf"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Username *</label>
+                  <label htmlFor="add-username" className="block text-xs font-semibold text-ink-secondary">
+                    Username *
+                  </label>
                   <input
+                    id="add-username"
                     type="text"
                     required
                     value={addForm.username}
                     onChange={(e) => setAddForm({ ...addForm, username: e.target.value })}
-                    placeholder="Contoh: budi_s"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="misal: noc_operator2"
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
-                  <p className="mt-0.5 text-[11px] text-slate-500">Huruf, angka, _ atau -</p>
+                  <p className="mt-0.5 text-[11px] text-ink-muted">Huruf, angka, _ atau -</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Email</label>
+                  <label htmlFor="add-email" className="block text-xs font-semibold text-ink-secondary">
+                    Email
+                  </label>
                   <input
+                    id="add-email"
                     type="email"
                     value={addForm.email}
                     onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-                    placeholder="budi@perusahaan.co.id"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="email@perusahaan.co.id"
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Peran (Role) *</label>
+                <label htmlFor="add-role" className="block text-xs font-semibold text-ink-secondary">
+                  Peran (Role) *
+                </label>
                 <select
+                  id="add-role"
                   value={addForm.roleId}
                   onChange={(e) => setAddForm({ ...addForm, roleId: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 >
                   {initialRoles.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -671,56 +723,62 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Kata Sandi Awal *</label>
+                  <label htmlFor="add-pw" className="block text-xs font-semibold text-ink-secondary">
+                    Kata Sandi Awal *
+                  </label>
                   <input
+                    id="add-pw"
                     type="password"
                     required
                     minLength={8}
                     value={addForm.password}
                     onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
                     placeholder="Minimal 8 karakter"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Konfirmasi Kata Sandi *</label>
+                  <label htmlFor="add-pw-confirm" className="block text-xs font-semibold text-ink-secondary">
+                    Konfirmasi Kata Sandi *
+                  </label>
                   <input
+                    id="add-pw-confirm"
                     type="password"
                     required
                     minLength={8}
                     value={addForm.confirmPassword}
                     onChange={(e) => setAddForm({ ...addForm, confirmPassword: e.target.value })}
                     placeholder="Ulangi kata sandi"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   id="add-is-active"
                   type="checkbox"
                   checked={addForm.isActive}
                   onChange={(e) => setAddForm({ ...addForm, isActive: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-line-strong text-accent focus:ring-accent"
                 />
-                <label htmlFor="add-is-active" className="text-sm font-medium text-slate-700">
+                <label htmlFor="add-is-active" className="text-sm font-medium text-ink">
                   Status akun aktif (dapat langsung login)
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-3 border-t border-line pt-4">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAdd}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                  className="min-h-[40px] rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {submittingAdd ? 'Menyimpan...' : 'Simpan Pengguna'}
                 </button>
@@ -732,58 +790,75 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
 
       {/* Modal: Edit Pengguna */}
       {showEditModal && editTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-user-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-lg rounded-xl border border-line bg-elevated p-6 shadow-2xl animate-modal">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Edit Pengguna</h2>
-                <p className="text-xs text-slate-500">Username: @{editTarget.username}</p>
+                <h2 id="edit-user-title" className="text-lg font-bold text-ink">
+                  Edit Pengguna
+                </h2>
+                <p className="text-xs font-mono text-ink-muted">@{editTarget.username}</p>
               </div>
               <button
+                type="button"
+                aria-label="Tutup dialog"
                 onClick={() => setShowEditModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                <span className="sr-only">Tutup</span>
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
             {editError && (
-              <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">
+              <div className="mt-4 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-3 text-xs text-rose-800 dark:text-rose-200">
                 {editError}
               </div>
             )}
 
             <form onSubmit={handleSubmitEdit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Nama Lengkap *</label>
+                <label htmlFor="edit-name" className="block text-xs font-semibold text-ink-secondary">
+                  Nama Lengkap *
+                </label>
                 <input
+                  id="edit-name"
                   type="text"
                   required
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Email</label>
+                <label htmlFor="edit-email" className="block text-xs font-semibold text-ink-secondary">
+                  Email
+                </label>
                 <input
+                  id="edit-email"
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   placeholder="opsional@perusahaan.co.id"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Peran (Role) *</label>
+                <label htmlFor="edit-role" className="block text-xs font-semibold text-ink-secondary">
+                  Peran (Role) *
+                </label>
                 <select
+                  id="edit-role"
                   value={editForm.roleId}
                   disabled={editTarget.id === currentUserId}
                   onChange={(e) => setEditForm({ ...editForm, roleId: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 disabled:bg-slate-100 disabled:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink disabled:bg-subtle disabled:text-ink-muted focus:border-accent focus:outline-none"
                 >
                   {initialRoles.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -792,13 +867,13 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                   ))}
                 </select>
                 {editTarget.id === currentUserId && (
-                  <p className="mt-1 text-xs text-amber-600">
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                     Anda tidak dapat mengubah peran akun Anda sendiri.
                   </p>
                 )}
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <div className="flex items-center gap-2">
                   <input
                     id="edit-is-active"
@@ -806,31 +881,31 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                     disabled={editTarget.id === currentUserId}
                     checked={editForm.isActive}
                     onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                    className="h-4 w-4 rounded border-line-strong text-accent focus:ring-accent disabled:opacity-50"
                   />
-                  <label htmlFor="edit-is-active" className="text-sm font-medium text-slate-700">
+                  <label htmlFor="edit-is-active" className="text-sm font-medium text-ink">
                     Status akun aktif
                   </label>
                 </div>
                 {editTarget.id === currentUserId && (
-                  <p className="mt-1 text-xs text-amber-600">
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                     Anda tidak dapat menonaktifkan akun Anda sendiri yang sedang aktif.
                   </p>
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-3 border-t border-line pt-4">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingEdit}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                  className="min-h-[40px] rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {submittingEdit ? 'Menyimpan...' : 'Perbarui Pengguna'}
                 </button>
@@ -842,67 +917,83 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
 
       {/* Modal: Reset Password */}
       {showResetModal && resetTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-pw-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-elevated p-6 shadow-2xl animate-modal">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Reset Kata Sandi</h2>
-                <p className="text-xs text-slate-500">Pengguna: {resetTarget.name} (@{resetTarget.username})</p>
+                <h2 id="reset-pw-title" className="text-lg font-bold text-ink">
+                  Reset Kata Sandi
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Pengguna: {resetTarget.name} (@{resetTarget.username})
+                </p>
               </div>
               <button
+                type="button"
+                aria-label="Tutup dialog"
                 onClick={() => setShowResetModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                <span className="sr-only">Tutup</span>
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
             {resetError && (
-              <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">
+              <div className="mt-4 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-3 text-xs text-rose-800 dark:text-rose-200">
                 {resetError}
               </div>
             )}
 
             <form onSubmit={handleSubmitReset} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Kata Sandi Baru *</label>
+                <label htmlFor="reset-new-pw" className="block text-xs font-semibold text-ink-secondary">
+                  Kata Sandi Baru *
+                </label>
                 <input
+                  id="reset-new-pw"
                   type="password"
                   required
                   minLength={8}
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
                   placeholder="Minimal 8 karakter"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Konfirmasi Kata Sandi Baru *</label>
+                <label htmlFor="reset-confirm-pw" className="block text-xs font-semibold text-ink-secondary">
+                  Konfirmasi Kata Sandi Baru *
+                </label>
                 <input
+                  id="reset-confirm-pw"
                   type="password"
                   required
                   minLength={8}
                   value={resetConfirm}
                   onChange={(e) => setResetConfirm(e.target.value)}
                   placeholder="Ulangi kata sandi baru"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-3 border-t border-line pt-4">
                 <button
                   type="button"
                   onClick={() => setShowResetModal(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingReset}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                  className="min-h-[40px] rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {submittingReset ? 'Memproses...' : 'Simpan Kata Sandi'}
                 </button>
@@ -914,39 +1005,47 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
 
       {/* Modal: Konfirmasi Hapus */}
       {showDeleteModal && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-rose-700">Konfirmasi Hapus Pengguna</h2>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-user-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-elevated p-6 shadow-2xl animate-modal">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h2 id="delete-user-title" className="text-lg font-bold text-rose-700 dark:text-rose-300">
+                Konfirmasi Hapus Pengguna
+              </h2>
               <button
+                type="button"
+                aria-label="Tutup dialog"
                 onClick={() => setShowDeleteModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                <span className="sr-only">Tutup</span>
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
             {deleteError && (
-              <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">
+              <div className="mt-4 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-3 text-xs text-rose-800 dark:text-rose-200">
                 {deleteError}
               </div>
             )}
 
-            <div className="mt-4 text-sm text-slate-600">
+            <div className="mt-4 text-sm text-ink-secondary">
               Apakah Anda yakin ingin menghapus pengguna{' '}
-              <span className="font-semibold text-slate-900">{deleteTarget.name}</span> (username:{' '}
-              <span className="font-mono text-slate-800">@{deleteTarget.username}</span>)?
-              <p className="mt-2 text-xs text-slate-500">
-                Tindakan ini permanen. Seluruh log riwayat audit yang bersangkutan akan tetap tersimpan demi akuntabilitas kepatuhan sistem.
+              <span className="font-semibold text-ink">{deleteTarget.name}</span> (username:{' '}
+              <span className="font-mono text-ink">@{deleteTarget.username}</span>)?
+              <p className="mt-2 text-xs text-ink-muted">
+                Tindakan ini permanen. Seluruh log riwayat audit lampau tetap tersimpan untuk menjaga akuntabilitas sistem.
               </p>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex justify-end gap-3 border-t border-line pt-4">
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
               >
                 Batal
               </button>
@@ -954,7 +1053,7 @@ export function UserListClient({ initialRoles, currentUserId }: Props) {
                 type="button"
                 onClick={handleSubmitDelete}
                 disabled={submittingDelete}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 disabled:opacity-50"
+                className="min-h-[40px] rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
               >
                 {submittingDelete ? 'Menghapus...' : 'Ya, Hapus Pengguna'}
               </button>

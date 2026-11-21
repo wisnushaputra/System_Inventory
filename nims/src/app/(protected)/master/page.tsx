@@ -34,10 +34,10 @@ export default async function MasterDataPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Master Data</h1>
-        <p className="text-sm text-slate-500">
-          Kelola lokasi (site, room, rack), vendor perangkat, kategori, dan model perangkat jaringan.
+      <div className="animate-enter">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Master Data</h1>
+        <p className="text-sm text-ink-secondary mt-1">
+          Kelola lokasi (site, ruangan, rak), vendor perangkat, kategori, dan model perangkat jaringan.
         </p>
       </div>
 

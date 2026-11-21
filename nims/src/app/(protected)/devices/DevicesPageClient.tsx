@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DeviceHierarchyView } from './DeviceHierarchyView';
 import { DeviceListClient } from './DeviceListClient';
+import { IconLayers, IconTable } from '@/components/Icons';
 
 interface Props {
   categories: { id: number; name: string }[];
@@ -25,32 +26,40 @@ export function DevicesPageClient({
 
   return (
     <div className="space-y-6">
-      {/* Navigation Mode Switcher */}
-      <div className="border-b border-slate-200">
-        <nav aria-label="Mode Tampilan" className="-mb-px flex space-x-6">
+      {/* Mode Switcher Tabs */}
+      <div className="border-b border-line overflow-x-auto">
+        <nav
+          role="tablist"
+          aria-label="Mode Tampilan Inventaris"
+          className="-mb-px flex space-x-6"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'hierarchy'}
             onClick={() => setActiveTab('hierarchy')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-1 text-sm font-semibold transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-2 border-b-2 py-2.5 px-1 text-sm font-semibold whitespace-nowrap transition-[color,border-color] duration-150 ${
               activeTab === 'hierarchy'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:border-line-strong hover:text-ink'
             }`}
           >
-            <span>🗂️</span>
-            <span>Navigasi Hierarki (POP → Customer → Perangkat)</span>
+            <IconLayers className="h-4 w-4" />
+            <span>Navigasi Hierarki (POP ke Site ke Perangkat)</span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'global'}
             onClick={() => setActiveTab('global')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-1 text-sm font-semibold transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-2 border-b-2 py-2.5 px-1 text-sm font-semibold whitespace-nowrap transition-[color,border-color] duration-150 ${
               activeTab === 'global'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                ? 'border-accent text-accent-ink'
+                : 'border-transparent text-ink-secondary hover:border-line-strong hover:text-ink'
             }`}
           >
-            <span>📋</span>
+            <IconTable className="h-4 w-4" />
             <span>Semua Perangkat (Tabel Global)</span>
           </button>
         </nav>
@@ -58,22 +67,26 @@ export function DevicesPageClient({
 
       {/* Tab Panels */}
       {activeTab === 'hierarchy' ? (
-        <DeviceHierarchyView
-          categories={categories}
-          vendors={vendors}
-          canCreate={canCreate}
-          canArchive={canArchive}
-          canExport={canExport}
-        />
+        <div key="tab-hierarchy" className="animate-enter">
+          <DeviceHierarchyView
+            categories={categories}
+            vendors={vendors}
+            canCreate={canCreate}
+            canArchive={canArchive}
+            canExport={canExport}
+          />
+        </div>
       ) : (
-        <DeviceListClient
-          categories={categories}
-          vendors={vendors}
-          sites={sites}
-          canCreate={canCreate}
-          canArchive={canArchive}
-          canExport={canExport}
-        />
+        <div key="tab-global" className="animate-enter">
+          <DeviceListClient
+            categories={categories}
+            vendors={vendors}
+            sites={sites}
+            canCreate={canCreate}
+            canArchive={canArchive}
+            canExport={canExport}
+          />
+        </div>
       )}
     </div>
   );

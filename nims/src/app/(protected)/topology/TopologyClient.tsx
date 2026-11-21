@@ -17,6 +17,26 @@ import {
   Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { useTheme } from '@/components/ThemeProvider';
+import {
+  NimsBrandMark,
+  DeviceCategoryIcon,
+  IconPopBuilding,
+  IconSitePin,
+  IconCustomerGroup,
+  IconCog,
+  IconLinkCable,
+  IconLayers,
+  IconSubnetGlobe,
+  IconLayoutAuto,
+  IconSave,
+  IconTable,
+  IconArrowLeft,
+  IconArrowRight,
+  IconChevronRight,
+  IconClose,
+  IconPlus,
+} from '@/components/Icons';
 
 interface SiteOption {
   id: number;
@@ -38,43 +58,32 @@ interface Props {
   categories: CategoryOption[];
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  router: '🔀',
-  switch: '🔄',
-  olt: '💡',
-  ont: '🔌',
-  server: '🖥️',
-  radio: '📡',
-  firewall: '🛡️',
-  other: '📦',
-};
-
 const STATUS_BADGES: Record<string, string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-800',
-  PLANNED: 'bg-blue-100 text-blue-800',
-  MAINTENANCE: 'bg-amber-100 text-amber-800',
-  RETIRED: 'bg-slate-200 text-slate-700',
-  LOST: 'bg-rose-100 text-rose-800',
+  ACTIVE: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
+  PLANNED: 'bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-300',
+  MAINTENANCE: 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300',
+  RETIRED: 'bg-subtle text-ink-secondary',
+  LOST: 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300',
 };
-
-// =========================================================================
-// CUSTOM REACT FLOW NODES
-// =========================================================================
 
 // 1. Simpul Pusat (NOC / Backbone Network)
 function RootCustomNode({ data }: any) {
   return (
-    <div className="rounded-2xl border-2 border-indigo-400 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white p-5 shadow-2xl w-80 text-center select-none ring-4 ring-indigo-500/20">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/30 text-2xl mb-2">
-        🌐
+    <div className="rounded-xl border-2 border-[#0F6E6E] dark:border-[#2DD4BF] bg-[#0B3B3C] dark:bg-[#102A2C] text-white p-5 shadow-md w-80 text-center select-none">
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[#0F5253] mb-2.5">
+        <NimsBrandMark className="h-7 w-7" />
       </div>
       <h3 className="font-bold text-sm text-white tracking-wide">{data.title}</h3>
-      <p className="text-[11px] text-indigo-200/80 mt-0.5 leading-snug">{data.subtitle}</p>
-      <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-[11px] font-semibold text-indigo-300 border border-indigo-400/30">
-        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>{data.popCount} Point of Presence Terhubung</span>
+      <p className="text-[11px] text-teal-100 mt-1 leading-snug">{data.subtitle}</p>
+      <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#082C2D] px-3 py-1 text-[11px] font-semibold text-teal-100 border border-teal-600/50">
+        <span className="h-2 w-2 rounded-full bg-teal-300" aria-hidden="true" />
+        <span className="font-mono tabular-nums-data">{data.popCount} Point of Presence</span>
       </div>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-indigo-400 !border-2 !border-white" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3 h-3 !bg-[#2DD4BF] !border-2 !border-[#0B3B3C]"
+      />
     </div>
   );
 }
@@ -82,60 +91,82 @@ function RootCustomNode({ data }: any) {
 // 2. Simpul POP pada Level 1
 function PopCustomNode({ data }: any) {
   return (
-    <div
-      onClick={() => data.onSelect?.(data.id, data.name, data.siteCode)}
-      className="group relative rounded-xl border-2 border-indigo-200 bg-white p-4 shadow-md w-64 transition-all duration-200 hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1 cursor-pointer select-none ring-2 ring-transparent hover:ring-indigo-100"
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        data.onSelect?.(data.id, data.name, data.siteCode);
+      }}
+      className="group relative text-left rounded-xl border border-line-strong bg-surface p-4 shadow-sm w-64 transition-[border-color,box-shadow,transform] duration-150 hover:border-accent hover:shadow-md hover:-translate-y-0.5 select-none"
     >
-      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-indigo-500" />
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-accent" />
 
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/60">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-mono text-xs font-semibold text-accent-ink bg-accent-soft px-2 py-0.5 rounded">
           {data.siteCode}
         </span>
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+        <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 dark:text-emerald-300">
           Aktif
         </span>
       </div>
 
-      <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
-        🏢 {data.name}
+      <h4 className="flex items-center gap-1.5 text-sm font-bold text-ink group-hover:text-accent-ink transition-colors duration-150 truncate">
+        <IconPopBuilding className="h-4 w-4 shrink-0 text-accent" />
+        <span className="truncate">{data.name}</span>
       </h4>
-      <p className="text-[11px] text-slate-500 mt-0.5">
-        📍 {data.city}{data.province ? `, ${data.province}` : ''}
+      <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-secondary truncate">
+        <IconSitePin className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+        <span className="truncate">
+          {data.city}
+          {data.province ? `, ${data.province}` : ''}
+        </span>
       </p>
 
-      <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-center text-xs">
-        <div className="bg-slate-50 rounded p-1.5 border border-slate-100">
-          <span className="block text-[10px] text-slate-400">Site Pelanggan</span>
-          <span className="font-bold text-slate-800">👥 {data.customerSiteCount}</span>
+      <div className="mt-3 pt-2.5 border-t border-line grid grid-cols-2 gap-2 text-center text-xs">
+        <div className="bg-subtle rounded-lg p-1.5">
+          <span className="block text-[10px] text-ink-secondary">Site Pelanggan</span>
+          <span className="font-mono font-bold text-ink tabular-nums-data">
+            {data.customerSiteCount}
+          </span>
         </div>
-        <div className="bg-indigo-50/60 rounded p-1.5 border border-indigo-100">
-          <span className="block text-[10px] text-indigo-500">Total Perangkat</span>
-          <span className="font-bold text-indigo-950">🖥️ {data.totalDeviceCount}</span>
+        <div className="bg-accent-soft rounded-lg p-1.5">
+          <span className="block text-[10px] text-accent-ink">Total Perangkat</span>
+          <span className="font-mono font-bold text-accent-ink tabular-nums-data">
+            {data.totalDeviceCount}
+          </span>
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-indigo-600 group-hover:text-indigo-800 bg-indigo-50/80 p-2 rounded-lg transition-colors">
+      <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-accent-ink bg-accent-soft px-2.5 py-1.5 rounded-lg">
         <span>Buka Site Pelanggan</span>
-        <span className="transform transition-transform group-hover:translate-x-1 font-bold">→</span>
+        <IconArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
       </div>
-    </div>
+    </button>
   );
 }
 
 // 3. Simpul Header POP Induk pada Level 2
 function PopParentNode({ data }: any) {
   return (
-    <div className="rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 via-white to-indigo-50/80 p-4 shadow-lg w-72 text-center select-none ring-2 ring-indigo-200">
-      <div className="text-xs font-semibold text-indigo-700 uppercase tracking-wider mb-1">
-        Point of Presence (POP Induk)
+    <div className="rounded-xl border-2 border-accent bg-surface p-4 shadow-md w-72 text-center select-none">
+      <div className="inline-block rounded bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent-ink mb-1.5">
+        POP Induk
       </div>
-      <h3 className="font-bold text-base text-slate-900">📍 {data.name}</h3>
-      <p className="font-mono text-xs text-indigo-600 mt-0.5">[{data.siteCode}] &bull; {data.city}</p>
-      <div className="mt-2 text-[11px] text-slate-600">
-        Menghubungkan <strong>{data.customerSiteCount}</strong> Site Pelanggan
+      <h3 className="flex items-center justify-center gap-1.5 font-bold text-base text-ink">
+        <IconPopBuilding className="h-4 w-4 shrink-0 text-accent" />
+        <span>{data.name}</span>
+      </h3>
+      <p className="font-mono text-xs text-accent-ink mt-0.5">
+        [{data.siteCode}] {data.city}
+      </p>
+      <div className="mt-2 text-[11px] text-ink-secondary">
+        Menghubungkan <strong className="text-ink">{data.customerSiteCount}</strong> Site Pelanggan
       </div>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-indigo-500 !border-2 !border-white" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3 h-3 !bg-accent !border-2 !border-surface"
+      />
     </div>
   );
 }
@@ -145,157 +176,184 @@ function SiteCustomNode({ data }: any) {
   const isInternal = data.isInternalOnly;
 
   return (
-    <div
-      onClick={() => data.onSelect?.(data.id, data.name, data.siteCode, data.isInternalOnly)}
-      className={`group relative rounded-xl border-2 bg-white p-4 shadow-md w-64 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 cursor-pointer select-none ${
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        data.onSelect?.(data.id, data.name, data.siteCode, data.isInternalOnly);
+      }}
+      className={`group relative text-left rounded-xl border bg-surface p-4 shadow-sm w-64 transition-[border-color,box-shadow,transform] duration-150 hover:shadow-md hover:-translate-y-0.5 select-none ${
         isInternal
-          ? 'border-purple-200 hover:border-purple-500 hover:ring-2 hover:ring-purple-100'
-          : 'border-sky-200 hover:border-sky-500 hover:ring-2 hover:ring-sky-100'
+          ? 'border-amber-300 dark:border-amber-800 hover:border-amber-600'
+          : 'border-sky-300 dark:border-sky-800 hover:border-sky-600'
       }`}
     >
-      <Handle type="target" position={Position.Top} className={`w-2.5 h-2.5 ${isInternal ? '!bg-purple-500' : '!bg-sky-500'}`} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className={`w-2.5 h-2.5 ${isInternal ? '!bg-amber-600' : '!bg-sky-600'}`}
+      />
 
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-          isInternal
-            ? 'text-purple-700 bg-purple-50 border-purple-200/60'
-            : 'text-sky-700 bg-sky-50 border-sky-200/60'
-        }`}>
+        <span
+          className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+            isInternal
+              ? 'text-amber-900 bg-amber-100 dark:text-amber-300 dark:bg-amber-950/70'
+              : 'text-sky-900 bg-sky-100 dark:text-sky-300 dark:bg-sky-950/70'
+          }`}
+        >
           {data.siteCode}
         </span>
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+        <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 dark:text-emerald-300">
           Aktif
         </span>
       </div>
 
-      <h4 className={`text-sm font-bold text-slate-900 transition-colors line-clamp-1 ${
-        isInternal ? 'group-hover:text-purple-600' : 'group-hover:text-sky-600'
-      }`}>
-        {isInternal ? '⚙️ ' : '👥 '}{data.name}
+      <h4
+        className={`flex items-center gap-1.5 text-sm font-bold text-ink transition-colors duration-150 truncate ${
+          isInternal ? 'group-hover:text-amber-700 dark:group-hover:text-amber-300' : 'group-hover:text-sky-700 dark:group-hover:text-sky-300'
+        }`}
+      >
+        {isInternal ? (
+          <IconCog className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        ) : (
+          <IconCustomerGroup className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
+        )}
+        <span className="truncate">{data.name}</span>
       </h4>
-      <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-        📍 {data.address || data.city}
+      <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-secondary truncate">
+        <IconSitePin className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+        <span className="truncate">{data.address || data.city}</span>
       </p>
 
-      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-        <span className="text-[11px] text-slate-500 font-medium">Perangkat Site:</span>
-        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-          🖥️ {data.deviceCount} Unit
+      <div className="mt-3 pt-2.5 border-t border-line flex items-center justify-between text-xs">
+        <span className="text-[11px] text-ink-secondary font-medium">Perangkat Site</span>
+        <span className="font-mono font-bold text-ink bg-subtle px-2 py-0.5 rounded tabular-nums-data">
+          {data.deviceCount} Unit
         </span>
       </div>
 
-      <div className={`mt-3 flex items-center justify-between text-[11px] font-bold p-2 rounded-lg transition-colors ${
-        isInternal
-          ? 'text-purple-700 bg-purple-50 group-hover:bg-purple-100'
-          : 'text-sky-700 bg-sky-50 group-hover:bg-sky-100'
-      }`}>
-        <span>Lihat Topologi & List Perangkat</span>
-        <span className="transform transition-transform group-hover:translate-x-1 font-bold">→</span>
+      <div
+        className={`mt-3 flex items-center justify-between text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+          isInternal
+            ? 'text-amber-900 bg-amber-100 dark:text-amber-200 dark:bg-amber-950/70'
+            : 'text-sky-900 bg-sky-100 dark:text-sky-200 dark:bg-sky-950/70'
+        }`}
+      >
+        <span>Lihat Graf & Daftar Perangkat</span>
+        <IconArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
       </div>
-    </div>
+    </button>
   );
 }
 
 // 5. Simpul Perangkat pada Level 3 & Flat View
 function DeviceCustomNode({ data, selected }: any) {
-  const icon = CATEGORY_ICONS[data.categoryCode] || '📦';
-  const statusColor = STATUS_BADGES[data.inventoryStatus] || 'bg-slate-100 text-slate-700';
+  const statusColor = STATUS_BADGES[data.inventoryStatus] || 'bg-subtle text-ink-secondary';
 
   return (
     <div
-      className={`rounded-lg border bg-white p-3 shadow-md w-60 text-xs transition cursor-pointer select-none ${
-        selected ? 'border-indigo-600 ring-2 ring-indigo-400' : 'border-slate-200 hover:border-slate-400'
+      className={`rounded-xl border bg-surface p-3.5 shadow-sm w-60 text-xs transition-[border-color,box-shadow] duration-150 cursor-pointer select-none ${
+        selected
+          ? 'border-accent ring-2 ring-accent/30 shadow-md'
+          : 'border-line hover:border-line-strong'
       }`}
     >
-      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-indigo-500" />
-      <Handle type="target" position={Position.Left} className="w-2.5 h-2.5 !bg-indigo-500" />
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-accent" />
+      <Handle type="target" position={Position.Left} className="w-2.5 h-2.5 !bg-accent" />
 
-      {/* Header Node: Ikon & Hostname */}
-      <div className="flex items-center space-x-2 border-b border-slate-100 pb-2">
-        <span className="text-xl leading-none">{icon}</span>
+      <div className="flex items-center gap-2.5 border-b border-line pb-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+          <DeviceCategoryIcon code={data.categoryCode} className="h-4 w-4" />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="font-bold text-slate-900 truncate" title={data.hostname}>
+          <div className="font-bold text-ink truncate" title={data.hostname}>
             {data.hostname}
           </div>
-          <div className="font-mono text-[10px] text-slate-400">{data.deviceCode}</div>
+          <div className="font-mono text-[10px] text-ink-muted">{data.deviceCode}</div>
         </div>
       </div>
 
-      {/* Badge Hierarki Lokasi */}
-      <div className="mt-2 mb-1.5">
+      <div className="mt-2 mb-2">
         {data.isPopCore ? (
-          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20 truncate max-w-full">
-            📍 Core POP: {data.siteCode}
+          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950/70 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:text-amber-300 truncate max-w-full">
+            <IconPopBuilding className="h-3 w-3 shrink-0" />
+            <span>Core POP: {data.siteCode}</span>
           </span>
         ) : (
           <span
-            className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20 truncate max-w-full"
+            className="inline-flex items-center gap-1 rounded-md bg-sky-100 dark:bg-sky-950/70 px-2 py-0.5 text-[10px] font-semibold text-sky-900 dark:text-sky-300 truncate max-w-full"
             title={`${data.parentPop?.name || 'POP'} > ${data.site}`}
           >
-            👥 Pelanggan: {data.siteCode}
+            <IconCustomerGroup className="h-3 w-3 shrink-0" />
+            <span>Pelanggan: {data.siteCode}</span>
           </span>
         )}
       </div>
 
-      <div className="space-y-1 text-[11px] text-slate-600">
+      <div className="space-y-1 text-[11px] text-ink-secondary">
         <div className="flex justify-between">
-          <span className="text-slate-400">IP Mgmt:</span>
-          <span className="font-mono font-medium text-slate-800">
+          <span className="text-ink-muted">IP Mgmt</span>
+          <span className="font-mono font-medium text-ink">
             {data.managementIp || '-'}
           </span>
         </div>
         <div className="flex justify-between items-center pt-0.5">
-          <span className="text-slate-400">Status:</span>
+          <span className="text-ink-muted">Status</span>
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusColor}`}>
             {data.inventoryStatus}
           </span>
         </div>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 !bg-indigo-500" />
-      <Handle type="source" position={Position.Right} className="w-2.5 h-2.5 !bg-indigo-500" />
+      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 !bg-accent" />
+      <Handle type="source" position={Position.Right} className="w-2.5 h-2.5 !bg-accent" />
     </div>
   );
 }
 
-// =========================================================================
-// MAIN COMPONENT
-// =========================================================================
-
-export function TopologyClient({ sites, categories }: Props) {
-  // Mode Navigasi: 'drilldown' (Default, sesuai request) vs 'global' (flat semua perangkat)
+export function TopologyClient({ categories }: Props) {
+  const { theme, mounted } = useTheme();
   const [navMode, setNavMode] = useState<'drilldown' | 'global'>('drilldown');
-
-  // Level Drill-Down: 'pops' (Level 1) | 'sites' (Level 2) | 'devices' (Level 3)
   const [currentLevel, setCurrentLevel] = useState<'pops' | 'sites' | 'devices'>('pops');
 
-  // Hierarchy Selection Context
   const [activePop, setActivePop] = useState<{ id: number; name: string; siteCode: string } | null>(null);
-  const [activeSite, setActiveSite] = useState<{ id: number; name: string; siteCode: string; isInternalOnly?: boolean } | null>(null);
+  const [activeSite, setActiveSite] = useState<{
+    id: number;
+    name: string;
+    siteCode: string;
+    isInternalOnly?: boolean;
+  } | null>(null);
 
-  // React Flow state
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Global filters (aktif di level devices atau global view)
   const [categoryId, setCategoryId] = useState('');
   const [relationType, setRelationType] = useState('');
   const [medium, setMedium] = useState('');
 
-  // Selected Detail Panel states (DoD T7.1)
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<any | null>(null);
 
-  // Layout save state (DoD T7.2)
   const [savingLayout, setSavingLayout] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Daftar perangkat untuk ditampilkan dalam tabel pada Level 3
   const [siteDeviceList, setSiteDeviceList] = useState<any[]>([]);
 
-  // Registrasi custom node types
+  useEffect(() => {
+    if (!selectedNode && !selectedEdge) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedNode(null);
+        setSelectedEdge(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedNode, selectedEdge]);
+
   const nodeTypes = useMemo(
     () => ({
       rootNode: RootCustomNode,
@@ -307,7 +365,6 @@ export function TopologyClient({ sites, categories }: Props) {
     []
   );
 
-  // Handler transisi level
   const handleSelectPop = useCallback((id: number, name: string, siteCode: string) => {
     setActivePop({ id, name, siteCode });
     setActiveSite(null);
@@ -316,12 +373,15 @@ export function TopologyClient({ sites, categories }: Props) {
     setSelectedEdge(null);
   }, []);
 
-  const handleSelectSite = useCallback((id: number, name: string, siteCode: string, isInternalOnly?: boolean) => {
-    setActiveSite({ id, name, siteCode, isInternalOnly });
-    setCurrentLevel('devices');
-    setSelectedNode(null);
-    setSelectedEdge(null);
-  }, []);
+  const handleSelectSite = useCallback(
+    (id: number, name: string, siteCode: string, isInternalOnly?: boolean) => {
+      setActiveSite({ id, name, siteCode, isInternalOnly });
+      setCurrentLevel('devices');
+      setSelectedNode(null);
+      setSelectedEdge(null);
+    },
+    []
+  );
 
   const handleBackToPops = useCallback(() => {
     setActivePop(null);
@@ -338,7 +398,6 @@ export function TopologyClient({ sites, categories }: Props) {
     setSelectedEdge(null);
   }, []);
 
-  // Fetch data topologi sesuai level dan parameter
   const fetchTopology = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -363,7 +422,6 @@ export function TopologyClient({ sites, categories }: Props) {
       if (relationType) params.set('relationType', relationType);
       if (medium) params.set('medium', medium);
 
-      // Tentukan scope layout
       let scope = 'default';
       if (navMode === 'drilldown') {
         if (currentLevel === 'pops') scope = 'level-pops';
@@ -382,9 +440,8 @@ export function TopologyClient({ sites, categories }: Props) {
 
       const positions = layoutData.positions || {};
 
-      // Injeksi callback onSelect ke dalam node data agar dapat merespons klik
       const appliedNodes = topoData.nodes.map((node: any) => {
-        let nodeData = { ...node.data };
+        const nodeData = { ...node.data };
         if (node.type === 'popNode') {
           nodeData.onSelect = handleSelectPop;
         } else if (node.type === 'siteNode') {
@@ -407,7 +464,6 @@ export function TopologyClient({ sites, categories }: Props) {
       setNodes(appliedNodes);
       setEdges(topoData.edges || []);
 
-      // Simpan data perangkat jika sedang di Level 3 untuk ditampilkan di tabel bawah kanvas
       if (navMode === 'drilldown' && currentLevel === 'devices') {
         setSiteDeviceList(topoData.nodes.map((n: any) => n.data));
       } else {
@@ -418,26 +474,41 @@ export function TopologyClient({ sites, categories }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [navMode, currentLevel, activePop, activeSite, categoryId, relationType, medium, handleSelectPop, handleSelectSite, setNodes, setEdges]);
+  }, [
+    navMode,
+    currentLevel,
+    activePop,
+    activeSite,
+    categoryId,
+    relationType,
+    medium,
+    handleSelectPop,
+    handleSelectSite,
+    setNodes,
+    setEdges,
+  ]);
 
   useEffect(() => {
     fetchTopology();
   }, [fetchTopology]);
 
-  // Handler klik node kanvas
   const onNodeClick = (_: any, node: Node) => {
     const data = node.data as any;
     if (node.type === 'popNode') {
       handleSelectPop(Number(data.id), String(data.name), String(data.siteCode));
     } else if (node.type === 'siteNode') {
-      handleSelectSite(Number(data.id), String(data.name), String(data.siteCode), Boolean(data.isInternalOnly));
+      handleSelectSite(
+        Number(data.id),
+        String(data.name),
+        String(data.siteCode),
+        Boolean(data.isInternalOnly)
+      );
     } else if (node.type === 'deviceNode') {
       setSelectedNode(data);
       setSelectedEdge(null);
     }
   };
 
-  // Handler klik edge kanvas (DoD T7.1)
   const onEdgeClick = (_: any, edge: Edge) => {
     if (edge.data?.endpointA && edge.data?.endpointB) {
       setSelectedEdge(edge.data);
@@ -445,7 +516,6 @@ export function TopologyClient({ sites, categories }: Props) {
     }
   };
 
-  // Handler Simpan Layout (DoD T7.2)
   const handleSaveLayout = async () => {
     setSavingLayout(true);
     setSaveSuccessMsg(null);
@@ -472,16 +542,15 @@ export function TopologyClient({ sites, categories }: Props) {
       });
 
       if (!res.ok) throw new Error('Gagal menyimpan tata letak.');
-      setSaveSuccessMsg('Tata letak simpul berhasil disimpan!');
+      setSaveSuccessMsg('Tata letak simpul berhasil disimpan.');
       setTimeout(() => setSaveSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(err.message);
+      setErrorMsg(err.message);
     } finally {
       setSavingLayout(false);
     }
   };
 
-  // Handler Auto Layout (Rapikan Posisi)
   const handleAutoLayout = () => {
     if (currentLevel === 'pops') {
       const rootX = Math.max(1, nodes.length - 2) * 150 + 40;
@@ -517,11 +586,13 @@ export function TopologyClient({ sites, categories }: Props) {
     }
   };
 
+  const isDark = mounted && theme === 'dark';
+
   return (
     <div className="space-y-4">
-      {/* Top Header Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex space-x-2">
+      {/* Mode Switcher & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-3">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => {
@@ -530,14 +601,14 @@ export function TopologyClient({ sites, categories }: Props) {
               setActivePop(null);
               setActiveSite(null);
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`inline-flex min-h-[40px] items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-150 ${
               navMode === 'drilldown'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-accent text-accent-fg shadow-xs'
+                : 'bg-subtle text-ink-secondary hover:text-ink'
             }`}
           >
-            <span>🗂️</span>
-            <span>Navigasi Graf Bertingkat (POP → Site → Perangkat)</span>
+            <IconLayers className="h-4 w-4" />
+            <span>Graf Bertingkat (POP ke Site ke Perangkat)</span>
           </button>
 
           <button
@@ -547,102 +618,118 @@ export function TopologyClient({ sites, categories }: Props) {
               setSelectedNode(null);
               setSelectedEdge(null);
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`inline-flex min-h-[40px] items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-150 ${
               navMode === 'global'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-accent text-accent-fg shadow-xs'
+                : 'bg-subtle text-ink-secondary hover:text-ink'
             }`}
           >
-            <span>🌐</span>
+            <IconSubnetGlobe className="h-4 w-4" />
             <span>Topologi Global (Semua Perangkat)</span>
           </button>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleAutoLayout}
-            className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 font-medium shadow-sm"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink shadow-xs"
           >
-            🔄 Rapikan Posisi
+            <IconLayoutAuto className="h-4 w-4" />
+            <span>Rapikan Posisi</span>
           </button>
           <button
             type="button"
             disabled={savingLayout}
             onClick={handleSaveLayout}
-            className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 shadow-sm"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50 shadow-xs"
           >
-            {savingLayout ? 'Menyimpan...' : '💾 Simpan Layout'}
+            <IconSave className="h-4 w-4" />
+            <span>{savingLayout ? 'Menyimpan...' : 'Simpan Layout'}</span>
           </button>
         </div>
       </div>
 
-      {/* Breadcrumb Navigasi In-Canvas Graf Bertingkat */}
+      {/* Breadcrumb Bar */}
       {navMode === 'drilldown' && (
-        <nav aria-label="Hierarki Topologi" className="flex items-center flex-wrap justify-between gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <nav
+          aria-label="Hierarki Topologi"
+          className="flex items-center flex-wrap justify-between gap-3 text-xs bg-surface p-3 rounded-xl border border-line shadow-xs"
+        >
           <div className="flex items-center flex-wrap gap-2">
             <button
               type="button"
               onClick={handleBackToPops}
-              className={`font-medium transition-colors ${
+              className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors duration-150 ${
                 currentLevel === 'pops'
-                  ? 'text-indigo-600 font-bold'
-                  : 'text-slate-600 hover:text-indigo-600'
+                  ? 'bg-accent-soft text-accent-ink font-semibold'
+                  : 'text-ink-secondary hover:bg-subtle hover:text-ink'
               }`}
             >
-              🏢 Seluruh POP (Level 1)
+              <IconPopBuilding className="h-3.5 w-3.5" />
+              <span>Seluruh POP (Level 1)</span>
             </button>
 
             {activePop && (
               <>
-                <span className="text-slate-400 font-bold">/</span>
+                <IconChevronRight className="h-3.5 w-3.5 text-ink-muted" />
                 <button
                   type="button"
                   onClick={handleBackToSites}
-                  className={`font-medium transition-colors ${
+                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors duration-150 ${
                     currentLevel === 'sites'
-                      ? 'text-indigo-600 font-bold'
-                      : 'text-slate-600 hover:text-indigo-600'
+                      ? 'bg-accent-soft text-accent-ink font-semibold'
+                      : 'text-ink-secondary hover:bg-subtle hover:text-ink'
                   }`}
                 >
-                  📍 {activePop.name} ({activePop.siteCode})
+                  <IconSitePin className="h-3.5 w-3.5" />
+                  <span>
+                    {activePop.name} ({activePop.siteCode})
+                  </span>
                 </button>
               </>
             )}
 
             {activeSite && (
               <>
-                <span className="text-slate-400 font-bold">/</span>
-                <span className="text-indigo-900 font-bold bg-indigo-100 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
-                  {activeSite.isInternalOnly ? '⚙️ ' : '👥 '}{activeSite.name} ({activeSite.siteCode})
+                <IconChevronRight className="h-3.5 w-3.5 text-ink-muted" />
+                <span className="inline-flex min-h-[34px] items-center gap-1.5 rounded-md bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
+                  {activeSite.isInternalOnly ? (
+                    <IconCog className="h-3.5 w-3.5" />
+                  ) : (
+                    <IconCustomerGroup className="h-3.5 w-3.5" />
+                  )}
+                  <span>
+                    {activeSite.name} ({activeSite.siteCode})
+                  </span>
                 </span>
               </>
             )}
           </div>
 
-          {/* Tombol kembali ke tingkat sebelumnya */}
           <div className="flex items-center gap-2">
             {currentLevel === 'sites' && (
               <button
                 type="button"
                 onClick={handleBackToPops}
-                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 shadow-sm"
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1 text-xs font-medium text-ink hover:bg-subtle"
               >
-                ← Kembali ke Level POP
+                <IconArrowLeft className="h-3.5 w-3.5" />
+                <span>Kembali ke POP</span>
               </button>
             )}
             {currentLevel === 'devices' && (
               <button
                 type="button"
                 onClick={handleBackToSites}
-                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 shadow-sm"
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1 text-xs font-medium text-ink hover:bg-subtle"
               >
-                ← Kembali ke Daftar Site Pelanggan
+                <IconArrowLeft className="h-3.5 w-3.5" />
+                <span>Kembali ke Daftar Site</span>
               </button>
             )}
             {saveSuccessMsg && (
-              <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+              <span className="font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-1 rounded-md text-xs">
                 {saveSuccessMsg}
               </span>
             )}
@@ -650,16 +737,19 @@ export function TopologyClient({ sites, categories }: Props) {
         </nav>
       )}
 
-      {/* Filter Tambahan (Khusus Mode Global atau Level Perangkat) */}
+      {/* Filter Bar */}
       {(navMode === 'global' || currentLevel === 'devices') && (
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm text-xs">
+        <div className="rounded-xl border border-line bg-surface p-3.5 shadow-xs text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Filter Kategori</label>
+              <label htmlFor="topo-cat" className="block font-semibold text-ink-secondary mb-1">
+                Filter Kategori
+              </label>
               <select
+                id="topo-cat"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
+                className="min-h-[38px] w-full rounded-lg border border-line bg-canvas p-1.5 text-ink focus:border-accent focus:outline-none"
               >
                 <option value="">Semua Kategori</option>
                 {categories.map((c) => (
@@ -671,11 +761,14 @@ export function TopologyClient({ sites, categories }: Props) {
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Tipe Relasi Kabel</label>
+              <label htmlFor="topo-rel" className="block font-semibold text-ink-secondary mb-1">
+                Tipe Relasi Kabel
+              </label>
               <select
+                id="topo-rel"
                 value={relationType}
                 onChange={(e) => setRelationType(e.target.value)}
-                className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
+                className="min-h-[38px] w-full rounded-lg border border-line bg-canvas p-1.5 text-ink focus:border-accent focus:outline-none"
               >
                 <option value="">Semua Tipe Relasi</option>
                 <option value="physical">Physical (Kabel Fisik)</option>
@@ -686,11 +779,14 @@ export function TopologyClient({ sites, categories }: Props) {
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Media Transmisi</label>
+              <label htmlFor="topo-medium" className="block font-semibold text-ink-secondary mb-1">
+                Media Transmisi
+              </label>
               <select
+                id="topo-medium"
                 value={medium}
                 onChange={(e) => setMedium(e.target.value)}
-                className="w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none"
+                className="min-h-[38px] w-full rounded-lg border border-line bg-canvas p-1.5 text-ink focus:border-accent focus:outline-none"
               >
                 <option value="">Semua Media</option>
                 <option value="fiber">Fiber Optic</option>
@@ -704,18 +800,20 @@ export function TopologyClient({ sites, categories }: Props) {
       )}
 
       {errorMsg && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
+        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60 p-4 text-xs text-rose-800 dark:text-rose-200">
           {errorMsg}
         </div>
       )}
 
-      {/* Kanvas React Flow */}
-      <div className="relative h-[620px] w-full rounded-xl border border-slate-200 bg-slate-50 overflow-hidden shadow-sm">
+      {/* React Flow Canvas */}
+      <div className="relative h-[580px] sm:h-[620px] w-full rounded-xl border border-line bg-subtle overflow-hidden shadow-xs">
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-canvas/85">
             <div className="text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-r-transparent" />
-              <p className="mt-2 text-xs font-semibold text-slate-700">Memuat visualisasi topologi...</p>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-accent border-r-transparent" />
+              <p className="mt-2 text-xs font-semibold text-ink">
+                Memuat visualisasi topologi...
+              </p>
             </div>
           </div>
         )}
@@ -733,182 +831,222 @@ export function TopologyClient({ sites, categories }: Props) {
           maxZoom={2}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={18}
+            size={1}
+            color={isDark ? '#2d3a49' : '#c7d1ce'}
+          />
           <Controls position="bottom-left" />
           <MiniMap
             position="bottom-right"
+            maskColor={isDark ? 'rgba(15, 20, 25, 0.72)' : 'rgba(245, 247, 246, 0.72)'}
             nodeColor={(node: any) => {
-              if (node.type === 'rootNode') return '#312e81';
-              if (node.type === 'popNode' || node.type === 'popParentNode') return '#4f46e5';
+              if (node.type === 'rootNode') return '#0b3b3c';
+              if (node.type === 'popNode' || node.type === 'popParentNode') {
+                return isDark ? '#2dd4bf' : '#0f6e6e';
+              }
               if (node.type === 'siteNode') return '#0284c7';
-              return '#10b981';
+              return isDark ? '#34d399' : '#059669';
             }}
-            className="!border !border-slate-200 !bg-white/90 !shadow-sm"
           />
 
-          {/* Legenda Topologi Jaringan (DoD T7.1) */}
-          <Panel position="top-left" className="bg-white/95 backdrop-blur-sm p-3 rounded-lg border border-slate-200 shadow-sm text-[11px] space-y-1.5 select-none">
-            <div className="font-bold text-slate-800 text-xs border-b pb-1">Petunjuk Navigasi</div>
+          <Panel
+            position="top-left"
+            className="bg-surface p-3 rounded-xl border border-line shadow-sm text-[11px] space-y-2 select-none max-w-xs"
+          >
+            <div className="font-bold text-ink text-xs border-b border-line pb-1.5">
+              Petunjuk Navigasi
+            </div>
             {navMode === 'drilldown' && currentLevel === 'pops' && (
-              <div className="text-slate-600">
-                👉 Klik pada salah satu kotak <strong>POP</strong> untuk masuk ke daftar site pelanggan.
+              <div className="text-ink-secondary leading-relaxed">
+                Klik simpul <strong className="text-ink">POP</strong> untuk masuk ke daftar site pelanggan.
               </div>
             )}
             {navMode === 'drilldown' && currentLevel === 'sites' && (
-              <div className="text-slate-600">
-                👉 Klik pada salah satu kotak <strong>Site Pelanggan</strong> untuk melihat graf dan daftar perangkatnya.
+              <div className="text-ink-secondary leading-relaxed">
+                Klik simpul <strong className="text-ink">Site Pelanggan</strong> untuk melihat graf dan daftar perangkatnya.
               </div>
             )}
-            {navMode === 'drilldown' && currentLevel === 'devices' && (
-              <div className="text-slate-600">
-                👉 Klik simpul perangkat untuk melihat spesifikasi detail, atau klik kabel untuk melihat port terhubung.
+            {(navMode === 'global' || currentLevel === 'devices') && (
+              <div className="text-ink-secondary leading-relaxed">
+                Klik simpul perangkat untuk spesifikasi detail, atau klik kabel untuk melihat port terhubung.
               </div>
             )}
-            <div className="pt-1.5 border-t border-slate-100 flex items-center space-x-2">
-              <span className="w-4 h-0.5 bg-indigo-600 inline-block" />
-              <span className="text-slate-600">Physical (Kabel Fisik)</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="w-4 h-0.5 border-t border-dashed border-sky-500 inline-block" />
-              <span className="text-slate-600">Logical (VLAN / Tunnel)</span>
+            <div className="pt-1.5 border-t border-line space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-0.5 bg-[#0f766e] dark:bg-[#2dd4bf] inline-block" />
+                <span className="text-ink-secondary">Backbone / Kabel Fisik</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-0.5 border-t-2 border-dashed border-sky-500 inline-block" />
+                <span className="text-ink-secondary">Akses / Logical (VLAN)</span>
+              </div>
             </div>
           </Panel>
         </ReactFlow>
 
-        {/* Panel Detail Node Perangkat (Klik Node → Detail Perangkat Lengkap) (DoD T7.1) */}
+        {/* Node Detail Floating Inspector */}
         {selectedNode && (
-          <div className="absolute top-3 right-3 z-20 w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-xl text-xs space-y-3">
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl">{CATEGORY_ICONS[selectedNode.categoryCode] || '📦'}</span>
-                <div>
-                  <h3 className="font-bold text-slate-900 leading-tight">{selectedNode.hostname}</h3>
-                  <p className="font-mono text-[10px] text-slate-400">{selectedNode.deviceCode}</p>
+          <div className="animate-drill-forward absolute top-3 right-3 z-20 w-80 max-w-[calc(100%-1.5rem)] rounded-xl border border-line bg-elevated p-4 shadow-xl text-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-line pb-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+                  <DeviceCategoryIcon code={selectedNode.categoryCode} className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-ink truncate leading-tight">
+                    {selectedNode.hostname}
+                  </h3>
+                  <p className="font-mono text-[10px] text-ink-muted">{selectedNode.deviceCode}</p>
                 </div>
               </div>
               <button
                 type="button"
+                aria-label="Tutup detail perangkat"
                 onClick={() => setSelectedNode(null)}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
-            <dl className="divide-y divide-slate-100 text-[11px]">
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Lingkup Lokasi</dt>
-                <dd className="font-semibold text-slate-800">
-                  {selectedNode.isPopCore ? 'Infrastruktur Core POP' : 'Site Pelanggan / Customer'}
+            <dl className="divide-y divide-line text-[11px]">
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">Lingkup Lokasi</dt>
+                <dd className="font-semibold text-ink text-right">
+                  {selectedNode.isPopCore ? 'Infrastruktur Core POP' : 'Site Pelanggan'}
                 </dd>
               </div>
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">POP Induk</dt>
-                <dd className="font-medium text-slate-700">
-                  {selectedNode.parentPop?.name || selectedNode.site} ({selectedNode.parentPop?.siteCode || selectedNode.siteCode})
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">POP Induk</dt>
+                <dd className="font-medium text-ink text-right">
+                  {selectedNode.parentPop?.name || selectedNode.site} (
+                  {selectedNode.parentPop?.siteCode || selectedNode.siteCode})
                 </dd>
               </div>
               {!selectedNode.isPopCore && (
-                <div className="py-1.5 flex justify-between">
-                  <dt className="text-slate-400">Nama Pelanggan</dt>
-                  <dd className="font-medium text-slate-700">
+                <div className="py-1.5 flex justify-between gap-2">
+                  <dt className="text-ink-muted">Nama Pelanggan</dt>
+                  <dd className="font-medium text-ink text-right">
                     {selectedNode.site} ({selectedNode.siteCode})
                   </dd>
                 </div>
               )}
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Kategori</dt>
-                <dd className="font-medium text-slate-700">{selectedNode.category}</dd>
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">Kategori</dt>
+                <dd className="font-medium text-ink">{selectedNode.category}</dd>
               </div>
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Vendor & Model</dt>
-                <dd className="font-medium text-slate-700 text-right">
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">Vendor & Model</dt>
+                <dd className="font-medium text-ink text-right">
                   <div>{selectedNode.vendor}</div>
-                  <div className="text-[10px] text-slate-400">{selectedNode.model || '-'}</div>
+                  <div className="text-[10px] text-ink-muted">{selectedNode.model || '-'}</div>
                 </dd>
               </div>
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">IP Manajemen</dt>
-                <dd className="font-mono font-bold text-slate-800">{selectedNode.managementIp || 'Belum diatur'}</dd>
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">IP Manajemen</dt>
+                <dd className="font-mono font-bold text-ink">
+                  {selectedNode.managementIp || 'Belum diatur'}
+                </dd>
               </div>
-              <div className="py-1.5 flex justify-between">
-                <dt className="text-slate-400">Role Jaringan</dt>
-                <dd className="uppercase font-mono text-slate-700">{selectedNode.networkRole || '-'}</dd>
+              <div className="py-1.5 flex justify-between gap-2">
+                <dt className="text-ink-muted">Role Jaringan</dt>
+                <dd className="uppercase font-mono text-ink">{selectedNode.networkRole || '-'}</dd>
               </div>
-              <div className="py-1.5 flex justify-between items-center">
-                <dt className="text-slate-400">Status Inventaris</dt>
+              <div className="py-1.5 flex justify-between items-center gap-2">
+                <dt className="text-ink-muted">Status Inventaris</dt>
                 <dd>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${STATUS_BADGES[selectedNode.inventoryStatus] || 'bg-slate-100 text-slate-700'}`}>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      STATUS_BADGES[selectedNode.inventoryStatus] || 'bg-subtle text-ink-secondary'
+                    }`}
+                  >
                     {selectedNode.inventoryStatus}
                   </span>
                 </dd>
               </div>
             </dl>
 
-            <div className="pt-2 border-t flex justify-end">
+            <div className="pt-2 border-t border-line flex justify-end">
               <Link
                 href={`/devices/${selectedNode.id}`}
-                className="rounded bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-indigo-500 shadow-sm"
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-fg hover:bg-accent-hover shadow-xs"
               >
-                Buka Detail Lengkap Perangkat &rarr;
+                <span>Buka Detail Lengkap</span>
+                <IconArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
         )}
 
-        {/* Panel Detail Edge (Klik Edge → Detail Dua Port Terhubung) (DoD T7.1) */}
+        {/* Edge Detail Floating Inspector */}
         {selectedEdge && (
-          <div className="absolute top-3 right-3 z-20 w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-xl text-xs space-y-3">
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl">🔗</span>
+          <div className="animate-drill-forward absolute top-3 right-3 z-20 w-80 max-w-[calc(100%-1.5rem)] rounded-xl border border-line bg-elevated p-4 shadow-xl text-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-line pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+                  <IconLinkCable className="h-4 w-4" />
+                </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 leading-tight">Detail Relasi Koneksi</h3>
-                  <p className="text-[10px] text-slate-400">Dokumentasi Antarport</p>
+                  <h3 className="font-bold text-ink leading-tight">Detail Relasi Koneksi</h3>
+                  <p className="text-[10px] text-ink-muted">Dokumentasi Antarport</p>
                 </div>
               </div>
               <button
                 type="button"
+                aria-label="Tutup detail relasi"
                 onClick={() => setSelectedEdge(null)}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
               >
-                &times;
+                <IconClose className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Dua Port yang Terhubung (DoD T7.1) */}
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5 space-y-2 text-[11px]">
+            <div className="rounded-lg border border-line bg-subtle p-3 space-y-2 text-[11px]">
               <div>
-                <span className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">Endpoint A:</span>
-                <div className="font-medium text-slate-900">{selectedEdge.endpointA?.hostname}</div>
-                <div className="font-mono text-slate-600 font-bold">Port: {selectedEdge.endpointA?.portName}</div>
+                <span className="text-[10px] font-semibold text-accent-ink uppercase tracking-wide">
+                  Endpoint A:
+                </span>
+                <div className="font-medium text-ink">{selectedEdge.endpointA?.hostname}</div>
+                <div className="font-mono text-ink-secondary font-bold">
+                  Port: {selectedEdge.endpointA?.portName}
+                </div>
               </div>
-              <div className="border-t border-dashed border-slate-300 pt-1.5">
-                <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Endpoint B:</span>
-                <div className="font-medium text-slate-900">{selectedEdge.endpointB?.hostname}</div>
-                <div className="font-mono text-slate-600 font-bold">Port: {selectedEdge.endpointB?.portName}</div>
+              <div className="border-t border-dashed border-line-strong pt-2">
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+                  Endpoint B:
+                </span>
+                <div className="font-medium text-ink">{selectedEdge.endpointB?.hostname}</div>
+                <div className="font-mono text-ink-secondary font-bold">
+                  Port: {selectedEdge.endpointB?.portName}
+                </div>
               </div>
             </div>
 
-            <dl className="divide-y divide-slate-100 text-[11px]">
-              <div className="py-1 flex justify-between">
-                <dt className="text-slate-400">Tipe Relasi</dt>
-                <dd className="font-semibold text-slate-700 uppercase">{selectedEdge.relationType}</dd>
+            <dl className="divide-y divide-line text-[11px]">
+              <div className="py-1.5 flex justify-between">
+                <dt className="text-ink-muted">Tipe Relasi</dt>
+                <dd className="font-semibold text-ink uppercase">{selectedEdge.relationType}</dd>
               </div>
-              <div className="py-1 flex justify-between">
-                <dt className="text-slate-400">Media Transmisi</dt>
-                <dd className="font-medium text-slate-700 capitalize">{selectedEdge.medium || 'Unknown'}</dd>
+              <div className="py-1.5 flex justify-between">
+                <dt className="text-ink-muted">Media Transmisi</dt>
+                <dd className="font-medium text-ink capitalize">
+                  {selectedEdge.medium || 'Unknown'}
+                </dd>
               </div>
-              <div className="py-1 flex justify-between">
-                <dt className="text-slate-400">Kapasitas Link</dt>
-                <dd className="font-medium text-slate-700">
-                  {selectedEdge.capacityMbps ? `${selectedEdge.capacityMbps} Mbps` : 'Tidak dicatat'}
+              <div className="py-1.5 flex justify-between">
+                <dt className="text-ink-muted">Kapasitas Link</dt>
+                <dd className="font-mono font-medium text-ink">
+                  {selectedEdge.capacityMbps
+                    ? `${selectedEdge.capacityMbps} Mbps`
+                    : 'Tidak dicatat'}
                 </dd>
               </div>
               {selectedEdge.label && (
-                <div className="py-1 flex justify-between">
-                  <dt className="text-slate-400">Label Link</dt>
-                  <dd className="font-medium text-slate-700">{selectedEdge.label}</dd>
+                <div className="py-1.5 flex justify-between">
+                  <dt className="text-ink-muted">Label Link</dt>
+                  <dd className="font-medium text-ink">{selectedEdge.label}</dd>
                 </div>
               )}
             </dl>
@@ -916,79 +1054,91 @@ export function TopologyClient({ sites, categories }: Props) {
         )}
       </div>
 
-      {/* ========================================================================= */}
-      {/* LEVEL 3: DAFTAR PERANGKAT SITE (Di bawah kanvas topologi)                */}
-      {/* ========================================================================= */}
+      {/* Level 3 Site Devices Table */}
       {navMode === 'drilldown' && currentLevel === 'devices' && activeSite && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                📋 Daftar Perangkat di Site {activeSite.name} ({activeSite.siteCode})
+              <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+                <IconTable className="h-4 w-4 text-accent" />
+                <span>
+                  Daftar Perangkat di Site {activeSite.name} ({activeSite.siteCode})
+                </span>
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Total {siteDeviceList.length} unit perangkat terpasang di site ini.
+              <p className="text-xs text-ink-secondary mt-0.5 tabular-nums-data">
+                Total {siteDeviceList.length} unit perangkat terpasang di lokasi ini.
               </p>
             </div>
             <Link
               href={`/devices/new?siteId=${activeSite.id}`}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 shadow-sm"
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover shadow-xs"
             >
-              + Tambah Perangkat ke Site Ini
+              <IconPlus className="h-3.5 w-3.5" />
+              <span>Tambah Perangkat ke Site Ini</span>
             </Link>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="bg-slate-50 font-semibold text-slate-700">
+          <div className="overflow-x-auto rounded-lg border border-line">
+            <table className="min-w-full divide-y divide-line text-left text-xs">
+              <thead className="bg-subtle font-semibold text-ink-secondary uppercase text-[11px]">
                 <tr>
-                  <th className="px-3 py-2.5">Kode / Hostname</th>
-                  <th className="px-3 py-2.5">Kategori</th>
-                  <th className="px-3 py-2.5">Vendor / Model</th>
-                  <th className="px-3 py-2.5">IP Manajemen</th>
-                  <th className="px-3 py-2.5">Status</th>
-                  <th className="px-3 py-2.5 text-right">Aksi</th>
+                  <th className="px-3.5 py-2.5">Kode / Hostname</th>
+                  <th className="px-3.5 py-2.5">Kategori</th>
+                  <th className="px-3.5 py-2.5">Vendor / Model</th>
+                  <th className="px-3.5 py-2.5">IP Manajemen</th>
+                  <th className="px-3.5 py-2.5">Status</th>
+                  <th className="px-3.5 py-2.5 text-right">Tindakan</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
+              <tbody className="divide-y divide-line bg-surface">
                 {siteDeviceList.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-6 text-slate-500">
+                    <td colSpan={6} className="text-center py-8 text-ink-secondary">
                       Belum ada perangkat terpasang di site ini.
                     </td>
                   </tr>
                 ) : (
                   siteDeviceList.map((dev: any) => (
-                    <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-2.5">
-                        <Link href={`/devices/${dev.id}`} className="font-semibold text-indigo-600 hover:text-indigo-900">
+                    <tr key={dev.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="px-3.5 py-3">
+                        <Link
+                          href={`/devices/${dev.id}`}
+                          className="font-semibold text-accent-ink hover:underline"
+                        >
                           {dev.hostname}
                         </Link>
-                        <div className="font-mono text-[10px] text-slate-400">{dev.deviceCode}</div>
+                        <div className="font-mono text-[10px] text-ink-muted">{dev.deviceCode}</div>
                       </td>
-                      <td className="px-3 py-2.5 text-slate-700">{dev.category}</td>
-                      <td className="px-3 py-2.5 text-slate-700">
+                      <td className="px-3.5 py-3 text-ink-secondary">{dev.category}</td>
+                      <td className="px-3.5 py-3 text-ink">
                         <div>{dev.vendor}</div>
-                        <div className="text-[10px] text-slate-400">{dev.model || '-'}</div>
+                        <div className="text-[10px] text-ink-muted">{dev.model || '-'}</div>
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-slate-700">
+                      <td className="px-3.5 py-3 font-mono">
                         {dev.managementIp ? (
-                          <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px]">{dev.managementIp}</span>
+                          <span className="bg-accent-soft text-accent-ink px-2 py-0.5 rounded text-[11px] font-medium">
+                            {dev.managementIp}
+                          </span>
                         ) : (
-                          <span className="text-slate-400 italic">Belum diatur</span>
+                          <span className="text-ink-muted italic">Belum diatur</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${STATUS_BADGES[dev.inventoryStatus] || 'bg-slate-100 text-slate-700'}`}>
+                      <td className="px-3.5 py-3">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            STATUS_BADGES[dev.inventoryStatus] || 'bg-subtle text-ink-secondary'
+                          }`}
+                        >
                           {dev.inventoryStatus}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-right">
+                      <td className="px-3.5 py-3 text-right">
                         <Link
                           href={`/devices/${dev.id}`}
-                          className="rounded border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 shadow-sm"
+                          className="inline-flex items-center gap-1 rounded-md border border-line bg-canvas px-2.5 py-1 text-[11px] font-medium text-ink hover:bg-subtle"
                         >
-                          Detail &rarr;
+                          <span>Detail</span>
+                          <IconArrowRight className="h-3 w-3" />
                         </Link>
                       </td>
                     </tr>

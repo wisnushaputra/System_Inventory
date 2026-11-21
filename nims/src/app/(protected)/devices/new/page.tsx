@@ -35,9 +35,9 @@ export default async function NewDevicePage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tambah Perangkat Baru</h1>
-        <p className="text-sm text-slate-500">
+      <div className="animate-enter">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Tambah Perangkat Baru</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Daftarkan perangkat baru ke dalam inventaris jaringan NIMS.
         </p>
       </div>

@@ -2,7 +2,13 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import {
+  IconDownload,
+  IconUpload,
+  IconCheckCircle,
+  IconAlertTriangle,
+  IconClose,
+} from '@/components/Icons';
 
 interface Props {
   categories: Array<{ code: string; name: string }>;
@@ -51,7 +57,6 @@ interface ExecuteResponse {
 }
 
 export default function DeviceImportClient({ categories, vendors, sites }: Props) {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -182,84 +187,98 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Breadcrumb & Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header */}
+      <div className="animate-enter flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link href="/devices" className="hover:text-blue-600 transition-colors">
+          <div className="flex items-center gap-2 text-xs text-ink-secondary mb-1">
+            <Link href="/devices" className="hover:text-accent-ink transition-colors duration-150">
               Perangkat
             </Link>
             <span>/</span>
-            <span className="text-gray-900 font-medium">Impor CSV</span>
+            <span className="text-ink font-semibold">Impor CSV</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Impor Perangkat CSV</h1>
-          <p className="text-sm text-gray-600">
-            Unggah berkas CSV untuk mendaftarkan banyak perangkat jaringan sekaligus secara valid dan aman.
+          <h1 className="text-2xl font-bold text-ink">Impor Perangkat CSV</h1>
+          <p className="text-sm text-ink-secondary mt-1">
+            Unggah berkas CSV untuk mendaftarkan banyak perangkat jaringan sekaligus secara valid.
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleDownloadTemplate}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-colors"
+          className="inline-flex min-h-[42px] items-center gap-2 px-4 py-2 border border-line rounded-lg text-xs font-semibold text-ink bg-surface hover:bg-subtle shadow-xs transition-colors duration-150"
         >
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Unduh Template CSV
+          <IconDownload className="w-4 h-4 text-accent" />
+          <span>Unduh Template CSV</span>
         </button>
       </div>
 
-      {/* Panduan Referensi Singkat */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-        <h2 className="font-semibold mb-2 flex items-center gap-2">
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Aturan Pengisian Kolom CSV
-        </h2>
-        <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm text-blue-800">
+      {/* Reference Rules */}
+      <div className="animate-enter stagger-1 bg-accent-soft border border-accent/25 rounded-xl p-4 text-xs sm:text-sm text-ink space-y-2">
+        <h2 className="font-bold text-accent-ink">Aturan Pengisian Kolom CSV</h2>
+        <ul className="list-disc list-inside space-y-1 text-xs text-ink-secondary">
           <li>
-            <span className="font-medium">Kolom wajib:</span> <code className="bg-blue-100 px-1 rounded">device_code</code> (unik), <code className="bg-blue-100 px-1 rounded">hostname</code>, <code className="bg-blue-100 px-1 rounded">category</code>, <code className="bg-blue-100 px-1 rounded">vendor</code>, <code className="bg-blue-100 px-1 rounded">site_code</code>.
+            <span className="font-semibold text-ink">Kolom wajib:</span>{' '}
+            <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-ink">device_code</code> (unik),{' '}
+            <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-ink">hostname</code>,{' '}
+            <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-ink">category</code>,{' '}
+            <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-ink">vendor</code>,{' '}
+            <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-ink">site_code</code>.
           </li>
           <li>
-            <span className="font-medium">Kategori terdaftar:</span> {categories.map((c) => c.code).join(', ')}.
+            <span className="font-semibold text-ink">Kategori terdaftar:</span>{' '}
+            {categories.map((c) => c.code).join(', ')}.
           </li>
           <li>
-            <span className="font-medium">Vendor terdaftar:</span> {vendors.map((v) => v.name).join(', ')}.
+            <span className="font-semibold text-ink">Vendor terdaftar:</span>{' '}
+            {vendors.map((v) => v.name).join(', ')}.
           </li>
           <li>
-            <span className="font-medium">Kode Site terdaftar:</span> {sites.map((s) => s.siteCode).join(', ')}.
+            <span className="font-semibold text-ink">Kode Site terdaftar:</span>{' '}
+            {sites.map((s) => s.siteCode).join(', ')}.
           </li>
           <li>
-            <span className="font-medium">Perilaku parsial:</span> Jika ada baris yang tidak valid, baris yang lolos validasi tetap akan tersimpan, dan baris yang ditolak akan dilaporkan nomor baris beserta penyebabnya.
+            <span className="font-semibold text-ink">Perilaku parsial:</span> Baris yang valid tetap tersimpan sementara baris gagal dilaporkan nomor baris dan penyebabnya.
           </li>
         </ul>
       </div>
 
-      {/* Error Banner */}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800 flex items-start justify-between gap-3">
+        <div
+          role="alert"
+          className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 rounded-xl p-4 text-xs sm:text-sm text-rose-900 dark:text-rose-200 flex items-center justify-between gap-3"
+        >
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <IconAlertTriangle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-red-600 hover:text-red-800 font-bold">
-            &times;
+          <button
+            type="button"
+            aria-label="Tutup pesan kesalahan"
+            onClick={() => setErrorMsg(null)}
+            className="text-rose-700 dark:text-rose-300 hover:opacity-80"
+          >
+            <IconClose className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Upload Zone jika belum selesai eksekusi */}
+      {/* Upload Zone */}
       {!executeResult && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-5">
+        <div className="animate-enter stagger-2 bg-surface border border-line rounded-xl p-6 shadow-xs space-y-5">
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 bg-gray-50/50 transition-colors cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            className="border-2 border-dashed border-line-strong rounded-xl p-8 text-center hover:border-accent bg-canvas transition-colors duration-150 cursor-pointer"
           >
             <input
               type="file"
@@ -268,22 +287,23 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
               accept=".csv"
               className="hidden"
             />
-            <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p className="text-base font-medium text-gray-800">
-              {file ? file.name : 'Klik untuk memilih berkas atau seret & lepas berkas CSV ke sini'}
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-subtle text-accent mb-3">
+              <IconUpload className="h-6 w-6" />
+            </div>
+            <p className="text-sm sm:text-base font-semibold text-ink">
+              {file ? file.name : 'Klik untuk memilih berkas atau seret berkas CSV ke sini'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ink-secondary mt-1">
               {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Format berkas harus .csv (UTF-8 didukung)'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs">
               {file && (
-                <span className="text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md">
-                  ✓ Berkas siap: {file.name}
+                <span className="inline-flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 px-3 py-1 rounded-md font-medium">
+                  <IconCheckCircle className="h-4 w-4 shrink-0" />
+                  <span>Berkas siap: {file.name}</span>
                 </span>
               )}
             </div>
@@ -294,7 +314,7 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
                   type="button"
                   onClick={handleReset}
                   disabled={loading}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  className="min-h-[40px] px-4 py-2 border border-line rounded-lg text-xs font-medium text-ink-secondary bg-surface hover:bg-subtle hover:text-ink"
                 >
                   Batal / Ganti Berkas
                 </button>
@@ -303,73 +323,68 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
                 type="button"
                 onClick={handlePreview}
                 disabled={!file || loading}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="min-h-[40px] px-5 py-2 bg-accent text-accent-fg rounded-lg text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 transition-colors duration-150"
               >
-                {loading && (
-                  <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                )}
-                Pratinjau & Validasi Data
+                {loading ? 'Memvalidasi...' : 'Pratinjau & Validasi Data'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Panel Pratinjau (Preview) */}
+      {/* Preview Panel */}
       {preview && !executeResult && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 pb-4">
+        <div className="animate-enter bg-surface border border-line rounded-xl p-6 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-4">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Hasil Validasi & Pratinjau</h2>
-              <p className="text-xs text-gray-500">
+              <h2 className="text-lg font-bold text-ink">Hasil Validasi & Pratinjau</h2>
+              <p className="text-xs text-ink-secondary">
                 Periksa data sebelum menyimpannya ke basis data.
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-1 rounded">
+            <div className="flex flex-wrap items-center gap-2 tabular-nums-data">
+              <span className="bg-subtle text-ink text-xs font-semibold px-2.5 py-1 rounded-md">
                 Total: {preview.totalRows} baris
               </span>
-              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-1 rounded">
+              <span className="bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 text-xs font-semibold px-2.5 py-1 rounded-md">
                 Siap Simpan: {preview.validCount} baris
               </span>
               {preview.invalidCount > 0 && (
-                <span className="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded">
+                <span className="bg-rose-100 dark:bg-rose-950/70 text-rose-900 dark:text-rose-300 text-xs font-semibold px-2.5 py-1 rounded-md">
                   Gagal: {preview.invalidCount} baris
                 </span>
               )}
             </div>
           </div>
 
-          {/* Laporan Error per Baris jika ada */}
           {preview.errors.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-red-700 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Daftar Baris Tidak Lolos Validasi ({preview.errors.length} baris):
+              <h3 className="text-sm font-semibold text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                <IconAlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Daftar Baris Tidak Lolos Validasi ({preview.errors.length} baris):</span>
               </h3>
-              <div className="overflow-x-auto border border-red-200 rounded-lg">
-                <table className="min-w-full divide-y divide-red-200 text-xs">
-                  <thead className="bg-red-50 text-red-900">
+              <div className="overflow-x-auto border border-rose-200 dark:border-rose-900/60 rounded-lg">
+                <table className="min-w-full divide-y divide-rose-200 dark:divide-rose-900/60 text-xs">
+                  <thead className="bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200">
                     <tr>
-                      <th className="px-4 py-2 text-left font-semibold">Baris</th>
-                      <th className="px-4 py-2 text-left font-semibold">Kode Perangkat</th>
-                      <th className="px-4 py-2 text-left font-semibold">Hostname</th>
-                      <th className="px-4 py-2 text-left font-semibold">Alasan Penolakan</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Baris</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Kode Perangkat</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Hostname</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Alasan Penolakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-red-100 bg-white">
+                  <tbody className="divide-y divide-line bg-surface">
                     {preview.errors.map((err, idx) => (
-                      <tr key={idx} className="hover:bg-red-50/50">
-                        <td className="px-4 py-2 font-mono font-bold text-red-700">Baris {err.rowNumber}</td>
-                        <td className="px-4 py-2 text-gray-700 font-mono">{err.deviceCode || '-'}</td>
-                        <td className="px-4 py-2 text-gray-700">{err.hostname || '-'}</td>
-                        <td className="px-4 py-2 text-red-600 font-medium">{err.error}</td>
+                      <tr key={idx} className="hover:bg-subtle/60">
+                        <td className="px-4 py-2 font-mono font-bold text-rose-700 dark:text-rose-300">
+                          Baris {err.rowNumber}
+                        </td>
+                        <td className="px-4 py-2 text-ink font-mono">{err.deviceCode || '-'}</td>
+                        <td className="px-4 py-2 text-ink">{err.hostname || '-'}</td>
+                        <td className="px-4 py-2 text-rose-700 dark:text-rose-300 font-medium">
+                          {err.error}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -378,23 +393,20 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
             </div>
           )}
 
-          {/* Pratinjau Baris Valid */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-green-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Pratinjau Data Valid yang Akan Disimpan ({preview.previewRows.length} baris):
+            <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+              <IconCheckCircle className="w-4 h-4 shrink-0" />
+              <span>Pratinjau Data Valid ({preview.previewRows.length} baris):</span>
             </h3>
 
             {preview.previewRows.length === 0 ? (
-              <p className="text-xs text-gray-500 italic p-4 bg-gray-50 rounded-lg">
-                Tidak ada data valid yang dapat disimpan dari berkas ini. Perbaiki kesalahan berkas di atas lalu unggah kembali.
+              <p className="text-xs text-ink-secondary italic p-4 bg-subtle rounded-lg">
+                Tidak ada data valid dari berkas ini. Perbaiki kesalahan lalu unggah kembali.
               </p>
             ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200 text-xs">
-                  <thead className="bg-gray-50 text-gray-700">
+              <div className="overflow-x-auto border border-line rounded-lg">
+                <table className="min-w-full divide-y divide-line text-xs">
+                  <thead className="bg-subtle text-ink-secondary">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold">Baris</th>
                       <th className="px-3 py-2 text-left font-semibold">Kode</th>
@@ -407,21 +419,25 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
                       <th className="px-3 py-2 text-left font-semibold">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
+                  <tbody className="divide-y divide-line bg-surface">
                     {preview.previewRows.map((r, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-mono text-gray-500">#{r.rowNumber}</td>
-                        <td className="px-3 py-2 font-mono font-bold text-gray-900">{r.deviceCode}</td>
-                        <td className="px-3 py-2 text-gray-900">{r.hostname}</td>
-                        <td className="px-3 py-2 text-gray-700">{r.categoryName}</td>
-                        <td className="px-3 py-2 text-gray-700">
+                      <tr key={idx} className="hover:bg-subtle/60">
+                        <td className="px-3 py-2 font-mono text-ink-muted">#{r.rowNumber}</td>
+                        <td className="px-3 py-2 font-mono font-semibold text-ink">
+                          {r.deviceCode}
+                        </td>
+                        <td className="px-3 py-2 text-ink">{r.hostname}</td>
+                        <td className="px-3 py-2 text-ink-secondary">{r.categoryName}</td>
+                        <td className="px-3 py-2 text-ink-secondary">
                           {r.vendorName} {r.modelName ? `(${r.modelName})` : ''}
                         </td>
-                        <td className="px-3 py-2 font-mono text-blue-600">{r.managementIp || '-'}</td>
-                        <td className="px-3 py-2 text-gray-700">{r.siteName}</td>
-                        <td className="px-3 py-2 text-gray-700">{r.networkRole || '-'}</td>
+                        <td className="px-3 py-2 font-mono text-accent-ink">
+                          {r.managementIp || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-ink-secondary">{r.siteName}</td>
+                        <td className="px-3 py-2 text-ink-secondary">{r.networkRole || '-'}</td>
                         <td className="px-3 py-2">
-                          <span className="bg-green-100 text-green-800 text-[10px] font-semibold px-2 py-0.5 rounded">
+                          <span className="bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded">
                             {r.inventoryStatus}
                           </span>
                         </td>
@@ -433,13 +449,12 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
             )}
           </div>
 
-          {/* Konfirmasi Eksekusi */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-3 pt-4 border-t border-line">
             <button
               type="button"
               onClick={handleReset}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="min-h-[40px] px-4 py-2 border border-line rounded-lg text-xs font-medium text-ink-secondary hover:bg-subtle"
             >
               Batal
             </button>
@@ -447,57 +462,56 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
               type="button"
               onClick={handleExecute}
               disabled={loading || preview.validCount === 0}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              className="min-h-[40px] px-5 py-2 bg-accent text-accent-fg rounded-lg text-xs font-semibold hover:bg-accent-hover disabled:opacity-50"
             >
-              {loading && (
-                <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-              )}
-              Konfirmasi & Simpan {preview.validCount} Perangkat
+              {loading ? 'Menyimpan...' : `Konfirmasi & Simpan ${preview.validCount} Perangkat`}
             </button>
           </div>
         </div>
       )}
 
-      {/* Panel Hasil Eksekusi */}
+      {/* Execute Result */}
       {executeResult && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
+        <div className="animate-enter bg-surface border border-line rounded-xl p-6 shadow-xs space-y-6">
           <div className="text-center py-4">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 rounded-full flex items-center justify-center mx-auto mb-3">
+              <IconCheckCircle className="w-7 h-7" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">Proses Impor Selesai</h2>
-            <p className="text-sm text-gray-600 mt-1">{executeResult.message}</p>
+            <h2 className="text-xl font-bold text-ink">Proses Impor Selesai</h2>
+            <p className="text-sm text-ink-secondary mt-1">{executeResult.message}</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-              <span className="text-xs font-medium text-gray-500 uppercase">Total Baris CSV</span>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{executeResult.totalRows}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 tabular-nums-data">
+            <div className="bg-subtle border border-line rounded-lg p-4 text-center">
+              <span className="text-xs font-medium text-ink-secondary uppercase">Total Baris CSV</span>
+              <p className="text-2xl font-bold font-mono text-ink mt-1">{executeResult.totalRows}</p>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <span className="text-xs font-medium text-green-700 uppercase">Berhasil Disimpan</span>
-              <p className="text-2xl font-bold text-green-700 mt-1">{executeResult.successCount}</p>
+            <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60 rounded-lg p-4 text-center">
+              <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300 uppercase">
+                Berhasil Disimpan
+              </span>
+              <p className="text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-300 mt-1">
+                {executeResult.successCount}
+              </p>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <span className="text-xs font-medium text-red-700 uppercase">Gagal / Ditolak</span>
-              <p className="text-2xl font-bold text-red-700 mt-1">{executeResult.failedCount}</p>
+            <div className="bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 rounded-lg p-4 text-center">
+              <span className="text-xs font-medium text-rose-800 dark:text-rose-300 uppercase">
+                Gagal / Ditolak
+              </span>
+              <p className="text-2xl font-bold font-mono text-rose-800 dark:text-rose-300 mt-1">
+                {executeResult.failedCount}
+              </p>
             </div>
           </div>
 
-          {/* Tabel detail error eksekusi jika ada */}
           {executeResult.errors.length > 0 && (
             <div className="space-y-3 pt-2">
-              <h3 className="text-sm font-semibold text-red-700">
+              <h3 className="text-sm font-semibold text-rose-800 dark:text-rose-300">
                 Detail Baris Gagal ({executeResult.errors.length}):
               </h3>
-              <div className="overflow-x-auto border border-red-200 rounded-lg">
-                <table className="min-w-full divide-y divide-red-200 text-xs">
-                  <thead className="bg-red-50 text-red-900">
+              <div className="overflow-x-auto border border-rose-200 dark:border-rose-900/60 rounded-lg">
+                <table className="min-w-full divide-y divide-rose-200 dark:divide-rose-900/60 text-xs">
+                  <thead className="bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200">
                     <tr>
                       <th className="px-4 py-2 text-left font-semibold">Baris</th>
                       <th className="px-4 py-2 text-left font-semibold">Kode</th>
@@ -505,13 +519,15 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
                       <th className="px-4 py-2 text-left font-semibold">Alasan Penolakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-red-100 bg-white">
+                  <tbody className="divide-y divide-line bg-surface">
                     {executeResult.errors.map((err, idx) => (
-                      <tr key={idx} className="hover:bg-red-50/50">
-                        <td className="px-4 py-2 font-mono font-bold text-red-700">Baris {err.rowNumber}</td>
-                        <td className="px-4 py-2 text-gray-700 font-mono">{err.deviceCode || '-'}</td>
-                        <td className="px-4 py-2 text-gray-700">{err.hostname || '-'}</td>
-                        <td className="px-4 py-2 text-red-600">{err.error}</td>
+                      <tr key={idx}>
+                        <td className="px-4 py-2 font-mono font-bold text-rose-700 dark:text-rose-300">
+                          Baris {err.rowNumber}
+                        </td>
+                        <td className="px-4 py-2 text-ink font-mono">{err.deviceCode || '-'}</td>
+                        <td className="px-4 py-2 text-ink">{err.hostname || '-'}</td>
+                        <td className="px-4 py-2 text-rose-700 dark:text-rose-300">{err.error}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -520,17 +536,17 @@ export default function DeviceImportClient({ categories, vendors, sites }: Props
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4 border-t border-line">
             <button
               type="button"
               onClick={handleReset}
-              className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="min-h-[42px] px-5 py-2.5 border border-line rounded-lg text-xs font-medium text-ink bg-surface hover:bg-subtle"
             >
               Impor Berkas Lain
             </button>
             <Link
               href="/devices"
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors text-center"
+              className="inline-flex min-h-[42px] items-center justify-center px-6 py-2.5 bg-accent text-accent-fg rounded-lg text-xs font-semibold hover:bg-accent-hover"
             >
               Buka Daftar Perangkat
             </Link>

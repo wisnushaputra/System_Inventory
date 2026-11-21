@@ -78,7 +78,7 @@ export async function GET(req: Request) {
       target: `pop-${pop.id}`,
       type: 'default',
       animated: true,
-      style: { stroke: '#4f46e5', strokeWidth: 2 },
+      style: { stroke: '#0f766e', strokeWidth: 2 },
       data: {
         label: 'Backbone Link',
       },
@@ -200,7 +200,7 @@ export async function GET(req: Request) {
         target: `site-internal-${pop.id}`,
         type: 'default',
         animated: true,
-        style: { stroke: '#a855f7', strokeWidth: 2, strokeDasharray: '4,4' },
+        style: { stroke: '#d97706', strokeWidth: 2, strokeDasharray: '4,4' },
         data: {
           label: 'Internal POP',
         },
@@ -365,7 +365,7 @@ export async function GET(req: Request) {
       type: 'default',
       animated: isFiber, // Garis bergerak untuk fiber optic
       style: {
-        stroke: isPhysical ? '#4f46e5' : '#0ea5e9', // Indigo untuk physical, Sky untuk logical
+        stroke: isPhysical ? '#0f766e' : '#0284c7', // Teal untuk physical, Sky untuk logical
         strokeWidth: 2,
         strokeDasharray: isPhysical ? undefined : '5,5', // Garis putus-putus untuk logical
       },
