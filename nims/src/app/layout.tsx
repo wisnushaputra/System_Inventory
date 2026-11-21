@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full bg-canvas text-ink font-sans antialiased">
+      <body suppressHydrationWarning className="min-h-full bg-canvas text-ink font-sans antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
