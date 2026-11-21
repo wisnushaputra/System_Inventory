@@ -11,8 +11,10 @@ import {
   IconPlus,
   IconCheckCircle,
   IconLinkCable,
+  IconEdit,
 } from '@/components/Icons';
 import { parsePointToPointHost } from '@/lib/ipam';
+import { RoomRackManagerModal } from '@/components/RoomRackManagerModal';
 
 interface AuditItem {
   id: number;
@@ -136,6 +138,7 @@ interface DeviceDetailProps {
     archiveReason: string | null;
     createdAt: string;
     updatedAt: string;
+    version?: number;
     managementIp?: string | null;
     category: { id: number; name: string; code: string };
     vendor: { id: number; name: string; website: string | null };
@@ -161,9 +164,11 @@ interface DeviceDetailProps {
   };
   history: AuditItem[];
   canEdit: boolean;
+  canUpdateDevice?: boolean;
   canArchive: boolean;
   canUploadDoc?: boolean;
   canManageIp?: boolean;
+  canManageSites?: boolean;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -201,9 +206,11 @@ export function DeviceDetailClient({
   device,
   history,
   canEdit,
+  canUpdateDevice = false,
   canArchive,
   canUploadDoc = false,
   canManageIp = false,
+  canManageSites = false,
 }: DeviceDetailProps) {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'
@@ -232,6 +239,22 @@ export function DeviceDetailClient({
   const [manualIpSubmitting, setManualIpSubmitting] = useState(false);
   const [manualIpError, setManualIpError] = useState<string | null>(null);
   const [ipSuccessMsg, setIpSuccessMsg] = useState<string | null>(null);
+
+  const [currentRoom, setCurrentRoom] = useState(device.room);
+  const [currentRack, setCurrentRack] = useState(device.rack);
+  const [deviceVersion, setDeviceVersion] = useState(device.version ?? 1);
+  const [showPlacementModal, setShowPlacementModal] = useState(false);
+  const [siteRooms, setSiteRooms] = useState<{ id: number; name: string; floor: string | null }[]>([]);
+  const [siteRacks, setSiteRacks] = useState<
+    { id: number; name: string; roomId: number | null; unitCapacity: number }[]
+  >([]);
+  const [placementLoading, setPlacementLoading] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [selectedRackId, setSelectedRackId] = useState('');
+  const [placementSubmitting, setPlacementSubmitting] = useState(false);
+  const [placementError, setPlacementError] = useState<string | null>(null);
+  const [placementSuccessMsg, setPlacementSuccessMsg] = useState<string | null>(null);
+  const [showRoomRackManager, setShowRoomRackManager] = useState(false);
 
   const currentManagementIp =
     ipAddresses.find((ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED')
@@ -283,16 +306,19 @@ export function DeviceDetailClient({
       showConnModal ||
       Boolean(archiveConnTarget) ||
       showUploadModal ||
-      showManualIpModal;
+      showManualIpModal ||
+      showPlacementModal;
     if (!anyModal) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (showRoomRackManager) return;
         setShowArchiveModal(false);
         setShowBatchModal(false);
         setShowConnModal(false);
         setArchiveConnTarget(null);
         setShowUploadModal(false);
         if (!manualIpSubmitting) setShowManualIpModal(false);
+        if (!placementSubmitting) setShowPlacementModal(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -305,6 +331,9 @@ export function DeviceDetailClient({
     showUploadModal,
     showManualIpModal,
     manualIpSubmitting,
+    showPlacementModal,
+    placementSubmitting,
+    showRoomRackManager,
   ]);
 
   const refreshInterfaces = useCallback(async () => {
@@ -558,6 +587,68 @@ export function DeviceDetailClient({
     }
   };
 
+  const loadSiteRoomsAndRacks = useCallback(async () => {
+    setPlacementLoading(true);
+    try {
+      const [resRooms, resRacks] = await Promise.all([
+        fetch(`/api/master/rooms?siteId=${device.site.id}`),
+        fetch(`/api/master/racks?siteId=${device.site.id}`),
+      ]);
+      if (resRooms.ok) {
+        const jRooms = await resRooms.json();
+        setSiteRooms(jRooms.data || []);
+      }
+      if (resRacks.ok) {
+        const jRacks = await resRacks.json();
+        setSiteRacks(jRacks.data || []);
+      }
+    } finally {
+      setPlacementLoading(false);
+    }
+  }, [device.site.id]);
+
+  const handleOpenPlacementModal = () => {
+    setSelectedRoomId(currentRoom?.id.toString() || '');
+    setSelectedRackId(currentRack?.id.toString() || '');
+    setPlacementError(null);
+    setShowPlacementModal(true);
+    loadSiteRoomsAndRacks();
+  };
+
+  const handleSavePlacement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPlacementSubmitting(true);
+    setPlacementError(null);
+    try {
+      const res = await fetch(`/api/devices/${device.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: selectedRoomId ? parseInt(selectedRoomId, 10) : null,
+          rackId: selectedRackId ? parseInt(selectedRackId, 10) : null,
+          version: deviceVersion,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || 'Gagal memperbarui lokasi Ruang / Rak perangkat.');
+      }
+      setCurrentRoom(json.data.room || null);
+      setCurrentRack(json.data.rack || null);
+      if (typeof json.data.version === 'number') {
+        setDeviceVersion(json.data.version);
+      }
+      setShowPlacementModal(false);
+      setPlacementSuccessMsg('Penempatan Ruang / Rak perangkat berhasil diperbarui.');
+    } catch (err: unknown) {
+      setPlacementError(
+        err instanceof Error ? err.message : 'Gagal memperbarui Ruang / Rak perangkat.'
+      );
+    } finally {
+      setPlacementSubmitting(false);
+    }
+  };
+
   const handleOpenManualIpModal = () => {
     setManualIpAddress('');
     setManualIpPrefix(30);
@@ -798,9 +889,30 @@ export function DeviceDetailClient({
           </div>
 
           <div className="rounded-xl border border-line bg-surface p-5 shadow-xs space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary border-b border-line pb-2.5">
-              Lokasi & Manajemen
-            </h2>
+            <div className="flex items-center justify-between gap-2 border-b border-line pb-2.5">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
+                Lokasi & Manajemen
+              </h2>
+              {canUpdateDevice && (
+                <button
+                  type="button"
+                  onClick={handleOpenPlacementModal}
+                  className="inline-flex min-h-[30px] items-center gap-1 rounded-md border border-line bg-canvas px-2.5 py-1 text-[11px] font-semibold text-accent-ink hover:border-accent hover:bg-accent-soft"
+                >
+                  <IconEdit className="h-3.5 w-3.5" />
+                  <span>Ubah Ruang / Rak</span>
+                </button>
+              )}
+            </div>
+            {placementSuccessMsg && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-[11px] font-medium text-emerald-900 dark:text-emerald-200"
+              >
+                <IconCheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{placementSuccessMsg}</span>
+              </div>
+            )}
             <dl className="divide-y divide-line text-xs">
               <div className="py-2 flex justify-between gap-2">
                 <dt className="text-ink-muted">Site / Lokasi</dt>
@@ -811,13 +923,13 @@ export function DeviceDetailClient({
               <div className="py-2 flex justify-between gap-2">
                 <dt className="text-ink-muted">Ruangan</dt>
                 <dd className="text-ink">
-                  {device.room ? `${device.room.name} (${device.room.floor || 'Lantai ?'})` : '-'}
+                  {currentRoom ? `${currentRoom.name} (${currentRoom.floor || 'Lantai ?'})` : '-'}
                 </dd>
               </div>
               <div className="py-2 flex justify-between gap-2">
                 <dt className="text-ink-muted">Rak</dt>
                 <dd className="text-ink">
-                  {device.rack ? `${device.rack.name} (${device.rack.unitCapacity}U)` : '-'}
+                  {currentRack ? `${currentRack.name} (${currentRack.unitCapacity}U)` : '-'}
                 </dd>
               </div>
               <div className="py-2 flex justify-between gap-2">
@@ -2232,6 +2344,159 @@ export function DeviceDetailClient({
           </div>
         </div>
       )}
+
+      {/* MODAL UBAH PENEMPATAN RUANG / RAK */}
+      {showPlacementModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+          onClick={() => {
+            if (!placementSubmitting && !showRoomRackManager) setShowPlacementModal(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="device-placement-title"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-line bg-elevated p-5 shadow-2xl animate-modal space-y-4 text-xs"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <div>
+                <h3 id="device-placement-title" className="text-base font-bold text-ink">
+                  Atur Penempatan Ruang / Rak
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-secondary">
+                  Site: <strong className="font-mono text-ink">{device.site.siteCode}</strong> -{' '}
+                  {device.site.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={placementSubmitting}
+                onClick={() => setShowPlacementModal(false)}
+                aria-label="Tutup dialog"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle hover:text-ink disabled:opacity-50"
+              >
+                <IconClose className="h-4 w-4" />
+              </button>
+            </div>
+
+            {placementError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 p-3 text-xs text-rose-800 dark:text-rose-200"
+              >
+                <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{placementError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSavePlacement} className="space-y-3.5">
+              <div>
+                <label htmlFor="place-room" className="block font-semibold text-ink-secondary">
+                  Ruangan
+                </label>
+                <select
+                  id="place-room"
+                  disabled={placementLoading}
+                  value={selectedRoomId}
+                  onChange={(e) => {
+                    const nextRoomId = e.target.value;
+                    setSelectedRoomId(nextRoomId);
+                    if (nextRoomId && selectedRackId) {
+                      const pickedRack = siteRacks.find(
+                        (rk) => rk.id.toString() === selectedRackId
+                      );
+                      if (
+                        pickedRack &&
+                        pickedRack.roomId !== null &&
+                        pickedRack.roomId.toString() !== nextRoomId
+                      ) {
+                        setSelectedRackId('');
+                      }
+                    }
+                  }}
+                  className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none disabled:opacity-60"
+                >
+                  <option value="">Tanpa Ruangan</option>
+                  {siteRooms.map((rm) => (
+                    <option key={rm.id} value={rm.id}>
+                      {rm.name} {rm.floor ? `(${rm.floor})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="place-rack" className="block font-semibold text-ink-secondary">
+                  Rak
+                </label>
+                <select
+                  id="place-rack"
+                  disabled={placementLoading}
+                  value={selectedRackId}
+                  onChange={(e) => setSelectedRackId(e.target.value)}
+                  className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none disabled:opacity-60"
+                >
+                  <option value="">Tanpa Rak</option>
+                  {siteRacks
+                    .filter(
+                      (rk) =>
+                        !selectedRoomId ||
+                        rk.roomId === null ||
+                        rk.roomId.toString() === selectedRoomId
+                    )
+                    .map((rk) => (
+                      <option key={rk.id} value={rk.id}>
+                        {rk.name} ({rk.unitCapacity}U)
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {canManageSites && (
+                <div className="flex items-center justify-between rounded-lg border border-dashed border-line-strong bg-subtle/60 px-3 py-2">
+                  <span className="text-[11px] text-ink-secondary">
+                    Ruang atau rak belum tersedia?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRoomRackManager(true)}
+                    className="text-[11px] font-semibold text-accent-ink hover:underline"
+                  >
+                    Kelola / Tambah Ruang & Rak Site Ini
+                  </button>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 border-t border-line pt-3">
+                <button
+                  type="button"
+                  disabled={placementSubmitting}
+                  onClick={() => setShowPlacementModal(false)}
+                  className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={placementSubmitting || placementLoading}
+                  className="min-h-[40px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {placementSubmitting ? 'Menyimpan...' : 'Simpan Penempatan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <RoomRackManagerModal
+        open={showRoomRackManager}
+        site={{ id: device.site.id, siteCode: device.site.siteCode, name: device.site.name }}
+        onClose={() => setShowRoomRackManager(false)}
+        onChanged={loadSiteRoomsAndRacks}
+      />
     </div>
   );
 }

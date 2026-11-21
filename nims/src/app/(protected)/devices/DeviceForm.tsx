@@ -123,7 +123,9 @@ export function DeviceForm({
 
       if (formData.modelId) payload.modelId = parseInt(formData.modelId, 10);
       if (formData.roomId) payload.roomId = parseInt(formData.roomId, 10);
+      else if (isEdit) payload.roomId = null;
       if (formData.rackId) payload.rackId = parseInt(formData.rackId, 10);
+      else if (isEdit) payload.rackId = null;
       if (formData.serialNumber) payload.serialNumber = formData.serialNumber.trim();
       if (formData.networkRole) payload.networkRole = formData.networkRole;
       if (formData.managementNotes) payload.managementNotes = formData.managementNotes.trim();

@@ -28,6 +28,13 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     return NextResponse.json({ message: 'Validasi gagal', errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
+  if (parsed.data.roomId) {
+    const room = await prisma.room.findUnique({ where: { id: parsed.data.roomId } });
+    if (!room || room.siteId !== current.siteId) {
+      return NextResponse.json({ message: 'Ruangan tidak sesuai dengan site rak ini.' }, { status: 400 });
+    }
+  }
+
   if (parsed.data.name && parsed.data.name !== current.name) {
     const duplicate = await prisma.rack.findUnique({
       where: { siteId_name: { siteId: current.siteId, name: parsed.data.name } },

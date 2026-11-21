@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconPlus, IconAlertTriangle, IconCheckCircle, IconTrash, IconEdit } from '@/components/Icons';
+import { RoomRackManagerModal, SiteRoomRackTarget } from '@/components/RoomRackManagerModal';
 
 interface SiteItem {
   id: number;
@@ -69,6 +70,7 @@ export function MasterDataClient({
 
   const [showAddSite, setShowAddSite] = useState(false);
   const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
+  const [roomRackSite, setRoomRackSite] = useState<SiteRoomRackTarget | null>(null);
   const [siteForm, setSiteForm] = useState({
     siteCode: '',
     name: '',
@@ -592,7 +594,22 @@ export function MasterDataClient({
                       </td>
                       <td className="px-4 py-3 text-ink-secondary">{s.city || '-'}</td>
                       <td className="px-4 py-3 text-ink-secondary tabular-nums-data">
-                        {s.rooms.length} ruang / {s._count.racks} rak
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {s.rooms.length} ruang / {s._count.racks} rak
+                          </span>
+                          {canManageSites && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setRoomRackSite({ id: s.id, siteCode: s.siteCode, name: s.name })
+                              }
+                              className="inline-flex min-h-[28px] items-center rounded-md border border-line bg-canvas px-2 py-0.5 text-[11px] font-semibold text-accent-ink hover:border-accent hover:bg-accent-soft whitespace-nowrap"
+                            >
+                              Ruang / Rak
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex rounded-md bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 dark:text-emerald-300">
@@ -999,6 +1016,13 @@ export function MasterDataClient({
           </div>
         </div>
       )}
+
+      <RoomRackManagerModal
+        open={Boolean(roomRackSite)}
+        site={roomRackSite}
+        onClose={() => setRoomRackSite(null)}
+        onChanged={() => router.refresh()}
+      />
     </div>
   );
 }

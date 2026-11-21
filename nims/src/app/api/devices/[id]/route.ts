@@ -18,8 +18,14 @@ const DeviceUpdateSchema = z.object({
   inventoryStatus: z.enum(['PLANNED', 'ACTIVE', 'MAINTENANCE', 'RETIRED', 'LOST']).optional(),
   managementNotes: z.string().max(1000).optional().nullable(),
   description: z.string().max(1000).optional().nullable(),
-  installedAt: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
-  warrantyExpiry: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
+  installedAt: z
+    .union([z.string().datetime(), z.literal(''), z.null()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v ? new Date(v) : null)),
+  warrantyExpiry: z
+    .union([z.string().datetime(), z.literal(''), z.null()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v ? new Date(v) : null)),
   ownerTeam: z.string().trim().max(100).optional().nullable(),
   version: z.number().int().positive().optional(),
   expectedUpdatedAt: z.string().optional(),
@@ -131,6 +137,20 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
   }
 
   const { version: _v, expectedUpdatedAt: _u, ...fieldsToUpdate } = parsed.data;
+  const effectiveSiteId = parsed.data.siteId ?? current.siteId;
+
+  if (parsed.data.roomId) {
+    const room = await prisma.room.findUnique({ where: { id: parsed.data.roomId } });
+    if (!room || room.siteId !== effectiveSiteId) {
+      return NextResponse.json({ message: 'Ruangan tidak sesuai dengan site perangkat.' }, { status: 400 });
+    }
+  }
+  if (parsed.data.rackId) {
+    const rack = await prisma.rack.findUnique({ where: { id: parsed.data.rackId } });
+    if (!rack || rack.siteId !== effectiveSiteId) {
+      return NextResponse.json({ message: 'Rak tidak sesuai dengan site perangkat.' }, { status: 400 });
+    }
+  }
 
   const updated = await prisma.device.update({
     where: { id },
