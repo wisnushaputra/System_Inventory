@@ -13,7 +13,9 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconPlus,
+  IconCheckCircle,
 } from '@/components/Icons';
+import { AddCustomerSiteModal } from '@/components/AddCustomerSiteModal';
 
 interface PopItem {
   id: number;
@@ -66,6 +68,7 @@ interface Props {
   canCreate: boolean;
   canArchive: boolean;
   canExport?: boolean;
+  canManageSites?: boolean;
   categories: { id: number; name: string }[];
   vendors: { id: number; name: string }[];
   initialPopId?: number | null;
@@ -75,6 +78,7 @@ interface Props {
 export function DeviceHierarchyView({
   canCreate,
   canArchive,
+  canManageSites = false,
   categories,
   vendors,
 }: Props) {
@@ -109,6 +113,8 @@ export function DeviceHierarchyView({
   const [archiveReason, setArchiveReason] = useState('');
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -295,6 +301,7 @@ export function DeviceHierarchyView({
             setSelectedPop(null);
             setSelectedCustomer(null);
             setActiveTabLevel2('customers');
+            setSuccessMsg(null);
           }}
           className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors duration-150 ${
             !selectedPop
@@ -356,6 +363,16 @@ export function DeviceHierarchyView({
       {errorMsg && (
         <div className="rounded-xl bg-rose-50 dark:bg-rose-950/50 p-4 border border-rose-200 dark:border-rose-900/60 text-xs font-medium text-rose-800 dark:text-rose-200">
           {errorMsg}
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-3.5 border border-emerald-200 dark:border-emerald-900/60 text-xs font-medium text-emerald-900 dark:text-emerald-200"
+        >
+          <IconCheckCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span>{successMsg}</span>
         </div>
       )}
 
@@ -512,16 +529,31 @@ export function DeviceHierarchyView({
                 onClick={() => {
                   setDrillDir('back');
                   setSelectedPop(null);
+                  setSuccessMsg(null);
                 }}
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
               >
                 <IconArrowLeft className="h-3.5 w-3.5" />
                 <span>Ganti POP</span>
               </button>
+              {canManageSites && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustomerModal(true)}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Tambah Site Pelanggan</span>
+                </button>
+              )}
               {canCreate && (
                 <Link
                   href={`/devices/new?siteId=${selectedPop.id}`}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-xs ${
+                    canManageSites
+                      ? 'border border-line bg-surface text-ink hover:bg-subtle'
+                      : 'bg-accent text-accent-fg hover:bg-accent-hover'
+                  }`}
                 >
                   <IconPlus className="h-3.5 w-3.5" />
                   <span>Tambah Perangkat ke POP</span>
@@ -597,8 +629,20 @@ export function DeviceHierarchyView({
                   <p className="mt-1 text-xs text-ink-secondary max-w-md mx-auto">
                     {customerSearch
                       ? 'Tidak ada site pelanggan yang cocok dengan kata kunci.'
-                      : 'Belum ada site pelanggan terdaftar di bawah POP ini. Tambahkan site baru melalui menu Master Data.'}
+                      : canManageSites
+                      ? 'Belum ada site pelanggan terdaftar di bawah POP ini. Tambahkan langsung di sini.'
+                      : 'Belum ada site pelanggan terdaftar di bawah POP ini.'}
                   </p>
+                  {!customerSearch && canManageSites && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCustomerModal(true)}
+                      className="mt-4 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                    >
+                      <IconPlus className="h-3.5 w-3.5" />
+                      <span>Tambah Site Pelanggan</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -787,6 +831,22 @@ export function DeviceHierarchyView({
           </div>
         </div>
       )}
+
+      <AddCustomerSiteModal
+        open={showAddCustomerModal && !!selectedPop}
+        pop={selectedPop}
+        onClose={() => setShowAddCustomerModal(false)}
+        onCreated={(created) => {
+          setSuccessMsg(
+            `Site pelanggan '${created.name}' (${created.siteCode}) berhasil ditambahkan di bawah ${selectedPop?.name || 'POP'}.`
+          );
+          setActiveTabLevel2('customers');
+          if (selectedPop) {
+            fetchCustomers(selectedPop.id);
+          }
+          fetchPops();
+        }}
+      />
     </div>
   );
 

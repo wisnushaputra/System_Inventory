@@ -76,6 +76,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Validasi gagal', errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
+  if (parsed.data.siteType === 'customer_site' && !parsed.data.parentSiteId) {
+    return NextResponse.json({ message: 'Site pelanggan wajib memilih POP Induk.' }, { status: 400 });
+  }
+  if (parsed.data.siteType === 'pop' && parsed.data.parentSiteId) {
+    return NextResponse.json({ message: 'POP Induk (Level 1) tidak boleh memiliki site induk.' }, { status: 400 });
+  }
+  if (parsed.data.parentSiteId) {
+    const parent = await prisma.site.findUnique({ where: { id: parsed.data.parentSiteId } });
+    if (!parent) {
+      return NextResponse.json({ message: 'POP Induk yang dipilih tidak ditemukan.' }, { status: 400 });
+    }
+    if (parent.parentSiteId !== null) {
+      return NextResponse.json({ message: 'Site induk harus berupa lokasi Level 1 (POP).' }, { status: 400 });
+    }
+  }
+
   const existing = await prisma.site.findUnique({ where: { siteCode: parsed.data.siteCode } });
   if (existing) {
     return NextResponse.json({ message: `Kode site '${parsed.data.siteCode}' sudah terdaftar` }, { status: 409 });

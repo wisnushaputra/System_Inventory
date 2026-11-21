@@ -1,11 +1,12 @@
-import { requirePermission } from '@/lib/auth';
+import { requirePermission, hasPermission } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { TopologyClient } from './TopologyClient';
 
 export const instant = false;
 
 export default async function TopologyPage() {
-  await requirePermission('topology.view');
+  const user = await requirePermission('topology.view');
+  const canManageSites = hasPermission(user, 'site.manage');
 
   const [sites, categories] = await Promise.all([
     prisma.site.findMany({
@@ -36,7 +37,7 @@ export default async function TopologyPage() {
         </p>
       </div>
 
-      <TopologyClient sites={sites} categories={categories} />
+      <TopologyClient sites={sites} categories={categories} canManageSites={canManageSites} />
     </div>
   );
 }

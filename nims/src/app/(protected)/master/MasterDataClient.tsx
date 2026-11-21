@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconPlus, IconAlertTriangle, IconCheckCircle, IconTrash } from '@/components/Icons';
+import { IconPlus, IconAlertTriangle, IconCheckCircle, IconTrash, IconEdit } from '@/components/Icons';
 
 interface SiteItem {
   id: number;
@@ -10,7 +10,10 @@ interface SiteItem {
   name: string;
   siteType: string;
   city: string | null;
+  address: string | null;
   status: string;
+  parentSiteId: number | null;
+  parentSite: { id: number; siteCode: string; name: string } | null;
   rooms: { id: number; name: string; floor: string | null }[];
   _count: { racks: number };
 }
@@ -65,12 +68,15 @@ export function MasterDataClient({
   const [loading, setLoading] = useState(false);
 
   const [showAddSite, setShowAddSite] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
   const [siteForm, setSiteForm] = useState({
     siteCode: '',
     name: '',
     siteType: 'pop',
+    parentSiteId: '',
     city: '',
     address: '',
+    status: 'active',
   });
 
   const [showAddVendor, setShowAddVendor] = useState(false);
@@ -95,21 +101,71 @@ export function MasterDataClient({
     setSuccessMsg(null);
   };
 
-  const handleCreateSite = async (e: React.FormEvent) => {
+  const parentPopOptions = sites.filter(
+    (s) => (s.siteType === 'pop' || s.parentSiteId === null) && s.id !== editingSiteId
+  );
+
+  const resetSiteForm = () => {
+    setEditingSiteId(null);
+    setSiteForm({
+      siteCode: '',
+      name: '',
+      siteType: 'pop',
+      parentSiteId: '',
+      city: '',
+      address: '',
+      status: 'active',
+    });
+  };
+
+  const startEditSite = (site: SiteItem) => {
+    clearAlerts();
+    setEditingSiteId(site.id);
+    setSiteForm({
+      siteCode: site.siteCode,
+      name: site.name,
+      siteType: site.siteType,
+      parentSiteId: site.parentSiteId ? site.parentSiteId.toString() : '',
+      city: site.city || '',
+      address: site.address || '',
+      status: site.status || 'active',
+    });
+    setShowAddSite(true);
+  };
+
+  const handleSubmitSite = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAlerts();
     setLoading(true);
+    const isEdit = editingSiteId !== null;
     try {
-      const res = await fetch('/api/master/sites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(siteForm),
-      });
+      const payload = {
+        siteCode: siteForm.siteCode,
+        name: siteForm.name,
+        siteType: siteForm.siteType,
+        parentSiteId:
+          siteForm.siteType === 'pop'
+            ? null
+            : siteForm.parentSiteId
+            ? parseInt(siteForm.parentSiteId, 10)
+            : null,
+        city: siteForm.city.trim() || null,
+        address: siteForm.address.trim() || null,
+        status: siteForm.status,
+      };
+      const res = await fetch(
+        isEdit ? `/api/master/sites/${editingSiteId}` : '/api/master/sites',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gagal menambahkan site');
+      if (!res.ok) throw new Error(data.message || 'Gagal menyimpan site');
       setSuccessMsg(data.message);
       setShowAddSite(false);
-      setSiteForm({ siteCode: '', name: '', siteType: 'pop', city: '', address: '' });
+      resetSiteForm();
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -321,7 +377,16 @@ export function MasterDataClient({
             {canManageSites && (
               <button
                 type="button"
-                onClick={() => setShowAddSite(!showAddSite)}
+                onClick={() => {
+                  if (showAddSite) {
+                    setShowAddSite(false);
+                    resetSiteForm();
+                  } else {
+                    resetSiteForm();
+                    clearAlerts();
+                    setShowAddSite(true);
+                  }
+                }}
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
                 {!showAddSite && <IconPlus className="h-3.5 w-3.5" />}
@@ -332,10 +397,12 @@ export function MasterDataClient({
 
           {showAddSite && (
             <form
-              onSubmit={handleCreateSite}
+              onSubmit={handleSubmitSite}
               className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
             >
-              <h3 className="text-sm font-bold text-ink">Form Tambah Site</h3>
+              <h3 className="text-sm font-bold text-ink">
+                {editingSiteId ? 'Form Edit Site' : 'Form Tambah Site'}
+              </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 <div>
                   <label htmlFor="site-code" className="block text-xs font-semibold text-ink-secondary">
@@ -345,10 +412,10 @@ export function MasterDataClient({
                     id="site-code"
                     type="text"
                     required
-                    placeholder="Contoh: POP-SBY-01"
+                    placeholder="Contoh: POP-SBY-01 / CUST-ABC-01"
                     value={siteForm.siteCode}
                     onChange={(e) => setSiteForm({ ...siteForm, siteCode: e.target.value })}
-                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs font-mono uppercase text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
                 <div>
@@ -359,7 +426,7 @@ export function MasterDataClient({
                     id="site-name"
                     type="text"
                     required
-                    placeholder="POP Surabaya Barat"
+                    placeholder="POP Surabaya Barat / PT Nusantara"
                     value={siteForm.name}
                     onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}
                     className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -372,16 +439,70 @@ export function MasterDataClient({
                   <select
                     id="site-type"
                     value={siteForm.siteType}
-                    onChange={(e) => setSiteForm({ ...siteForm, siteType: e.target.value })}
+                    onChange={(e) => {
+                      const nextType = e.target.value;
+                      setSiteForm({
+                        ...siteForm,
+                        siteType: nextType,
+                        parentSiteId: nextType === 'pop' ? '' : siteForm.parentSiteId,
+                      });
+                    }}
                     className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                   >
-                    <option value="pop">POP (Point of Presence)</option>
+                    <option value="pop">POP Induk (Level 1)</option>
+                    <option value="customer_site">Site Pelanggan (Level 2)</option>
                     <option value="dc">Data Center</option>
                     <option value="office">Office</option>
-                    <option value="customer_site">Customer Site</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
+
+                {siteForm.siteType !== 'pop' && (
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="site-parent"
+                      className="block text-xs font-semibold text-ink-secondary"
+                    >
+                      POP Induk (Level 1) {siteForm.siteType === 'customer_site' ? '*' : ''}
+                    </label>
+                    <select
+                      id="site-parent"
+                      required={siteForm.siteType === 'customer_site'}
+                      value={siteForm.parentSiteId}
+                      onChange={(e) => setSiteForm({ ...siteForm, parentSiteId: e.target.value })}
+                      className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                    >
+                      <option value="">-- Pilih POP Induk (Level 1) --</option>
+                      {parentPopOptions.map((pop) => (
+                        <option key={pop.id} value={pop.id}>
+                          {pop.siteCode} - {pop.name}
+                        </option>
+                      ))}
+                    </select>
+                    {siteForm.siteType === 'customer_site' && (
+                      <p className="mt-1 text-[11px] text-ink-muted">
+                        Site pelanggan akan ditempatkan sebagai Level 2 di bawah POP Induk yang dipilih.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="site-status" className="block text-xs font-semibold text-ink-secondary">
+                    Status
+                  </label>
+                  <select
+                    id="site-status"
+                    value={siteForm.status}
+                    onChange={(e) => setSiteForm({ ...siteForm, status: e.target.value })}
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                  >
+                    <option value="active">Aktif</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="inactive">Nonaktif</option>
+                  </select>
+                </div>
+
                 <div>
                   <label htmlFor="site-city" className="block text-xs font-semibold text-ink-secondary">
                     Kota
@@ -412,7 +533,10 @@ export function MasterDataClient({
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowAddSite(false)}
+                  onClick={() => {
+                    setShowAddSite(false);
+                    resetSiteForm();
+                  }}
                   className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
@@ -422,7 +546,7 @@ export function MasterDataClient({
                   disabled={loading}
                   className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
-                  {loading ? 'Menyimpan...' : 'Simpan Site'}
+                  {loading ? 'Menyimpan...' : editingSiteId ? 'Perbarui Site' : 'Simpan Site'}
                 </button>
               </div>
             </form>
@@ -436,6 +560,7 @@ export function MasterDataClient({
                     <th className="px-4 py-3">Kode Site</th>
                     <th className="px-4 py-3">Nama</th>
                     <th className="px-4 py-3">Tipe</th>
+                    <th className="px-4 py-3">POP Induk</th>
                     <th className="px-4 py-3">Kota</th>
                     <th className="px-4 py-3">Ruang / Rak</th>
                     <th className="px-4 py-3">Status</th>
@@ -450,6 +575,21 @@ export function MasterDataClient({
                       </td>
                       <td className="px-4 py-3 font-medium">{s.name}</td>
                       <td className="px-4 py-3 uppercase font-mono text-ink-muted">{s.siteType}</td>
+                      <td className="px-4 py-3">
+                        {s.parentSite ? (
+                          <span className="text-ink-secondary">
+                            <span className="font-mono text-ink font-medium">{s.parentSite.siteCode}</span>
+                            {' - '}
+                            {s.parentSite.name}
+                          </span>
+                        ) : s.siteType === 'pop' ? (
+                          <span className="inline-flex rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-ink">
+                            Level 1 (POP Induk)
+                          </span>
+                        ) : (
+                          <span className="text-ink-muted">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-ink-secondary">{s.city || '-'}</td>
                       <td className="px-4 py-3 text-ink-secondary tabular-nums-data">
                         {s.rooms.length} ruang / {s._count.racks} rak
@@ -461,21 +601,31 @@ export function MasterDataClient({
                       </td>
                       {canManageSites && (
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSite(s.id, s.name)}
-                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
-                          >
-                            <IconTrash className="h-3.5 w-3.5" />
-                            <span>Hapus</span>
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditSite(s)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-accent-ink hover:bg-accent-soft font-medium"
+                            >
+                              <IconEdit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSite(s.id, s.name)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
                   ))}
                   {sites.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-ink-secondary">
+                      <td colSpan={8} className="px-4 py-8 text-center text-ink-secondary">
                         Belum ada data site terdaftar.
                       </td>
                     </tr>

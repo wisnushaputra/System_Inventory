@@ -10,6 +10,7 @@ export default async function MasterDataPage() {
   const [sites, vendors, categories, models] = await Promise.all([
     prisma.site.findMany({
       include: {
+        parentSite: { select: { id: true, siteCode: true, name: true } },
         rooms: { include: { racks: true } },
         _count: { select: { racks: true } },
       },

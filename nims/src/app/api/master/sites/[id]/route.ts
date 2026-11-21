@@ -15,6 +15,7 @@ const SiteUpdateSchema = z.object({
   longitude: z.number().min(-180).max(180).optional().nullable(),
   status: z.enum(['active', 'inactive', 'maintenance']).optional(),
   description: z.string().max(500).optional().nullable(),
+  parentSiteId: z.number().int().positive().optional().nullable(),
 });
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -58,6 +59,29 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
   const parsed = SiteUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ message: 'Validasi gagal', errors: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
+  const effectiveType = parsed.data.siteType ?? current.siteType;
+  const effectiveParentId =
+    parsed.data.parentSiteId !== undefined ? parsed.data.parentSiteId : current.parentSiteId;
+
+  if (effectiveType === 'pop' && effectiveParentId !== null) {
+    return NextResponse.json({ message: 'POP Induk (Level 1) tidak boleh memiliki site induk.' }, { status: 400 });
+  }
+  if (effectiveType === 'customer_site' && !effectiveParentId) {
+    return NextResponse.json({ message: 'Site pelanggan wajib memilih POP Induk.' }, { status: 400 });
+  }
+  if (effectiveParentId !== null) {
+    if (effectiveParentId === id) {
+      return NextResponse.json({ message: 'Site tidak dapat menjadi induk bagi dirinya sendiri.' }, { status: 400 });
+    }
+    const parent = await prisma.site.findUnique({ where: { id: effectiveParentId } });
+    if (!parent) {
+      return NextResponse.json({ message: 'POP Induk yang dipilih tidak ditemukan.' }, { status: 400 });
+    }
+    if (parent.parentSiteId !== null) {
+      return NextResponse.json({ message: 'Site induk harus berupa lokasi Level 1 (POP).' }, { status: 400 });
+    }
   }
 
   if (parsed.data.siteCode && parsed.data.siteCode !== current.siteCode) {

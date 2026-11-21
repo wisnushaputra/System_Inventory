@@ -37,6 +37,7 @@ import {
   IconClose,
   IconPlus,
 } from '@/components/Icons';
+import { AddCustomerSiteModal } from '@/components/AddCustomerSiteModal';
 
 interface SiteOption {
   id: number;
@@ -56,6 +57,7 @@ interface CategoryOption {
 interface Props {
   sites: SiteOption[];
   categories: CategoryOption[];
+  canManageSites?: boolean;
 }
 
 const STATUS_BADGES: Record<string, string> = {
@@ -312,7 +314,7 @@ function DeviceCustomNode({ data, selected }: any) {
   );
 }
 
-export function TopologyClient({ categories }: Props) {
+export function TopologyClient({ categories, canManageSites = false }: Props) {
   const { theme, mounted } = useTheme();
   const [navMode, setNavMode] = useState<'drilldown' | 'global'>('drilldown');
   const [currentLevel, setCurrentLevel] = useState<'pops' | 'sites' | 'devices'>('pops');
@@ -339,6 +341,7 @@ export function TopologyClient({ categories }: Props) {
 
   const [savingLayout, setSavingLayout] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
 
   const [siteDeviceList, setSiteDeviceList] = useState<any[]>([]);
 
@@ -707,7 +710,17 @@ export function TopologyClient({ categories }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap gap-2">
+            {currentLevel === 'sites' && activePop && canManageSites && (
+              <button
+                type="button"
+                onClick={() => setShowAddCustomerModal(true)}
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+              >
+                <IconPlus className="h-3.5 w-3.5" />
+                <span>Tambah Site Pelanggan</span>
+              </button>
+            )}
             {currentLevel === 'sites' && (
               <button
                 type="button"
@@ -1149,6 +1162,17 @@ export function TopologyClient({ categories }: Props) {
           </div>
         </div>
       )}
+
+      <AddCustomerSiteModal
+        open={showAddCustomerModal && !!activePop}
+        pop={activePop}
+        onClose={() => setShowAddCustomerModal(false)}
+        onCreated={(created) => {
+          setSaveSuccessMsg(`Site '${created.name}' (${created.siteCode}) ditambahkan`);
+          setTimeout(() => setSaveSuccessMsg(null), 4000);
+          fetchTopology();
+        }}
+      />
     </div>
   );
 }

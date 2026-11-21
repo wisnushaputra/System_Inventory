@@ -18,6 +18,7 @@ export default async function DevicesPage() {
   const canCreate = hasPermission(user, 'device.create');
   const canArchive = hasPermission(user, 'device.archive');
   const canExport = hasPermission(user, 'report.export');
+  const canManageSites = hasPermission(user, 'site.manage');
 
   return (
     <div className="space-y-6">
@@ -67,6 +68,7 @@ export default async function DevicesPage() {
         canCreate={canCreate}
         canArchive={canArchive}
         canExport={canExport}
+        canManageSites={canManageSites}
       />
     </div>
   );

@@ -12,6 +12,7 @@ interface Props {
   canCreate: boolean;
   canArchive: boolean;
   canExport?: boolean;
+  canManageSites?: boolean;
 }
 
 export function DevicesPageClient({
@@ -21,6 +22,7 @@ export function DevicesPageClient({
   canCreate,
   canArchive,
   canExport = false,
+  canManageSites = false,
 }: Props) {
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'global'>('hierarchy');
 
@@ -74,6 +76,7 @@ export function DevicesPageClient({
             canCreate={canCreate}
             canArchive={canArchive}
             canExport={canExport}
+            canManageSites={canManageSites}
           />
         </div>
       ) : (
