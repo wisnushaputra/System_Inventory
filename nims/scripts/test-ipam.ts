@@ -1,4 +1,4 @@
-import { parseCidr, validateHostIp, ipToInt, intToIp } from '../src/lib/ipam';
+import { parseCidr, validateHostIp, parsePointToPointHost } from '../src/lib/ipam';
 import assert from 'node:assert';
 
 console.log('--- Testing IPAM Utility ---');
@@ -45,5 +45,25 @@ assert.strictEqual(validateHostIp('10.0.0.1', '10.0.0.0/30').valid, true);
 assert.strictEqual(validateHostIp('10.0.0.2', '10.0.0.0/30').valid, true);
 assert.strictEqual(validateHostIp('10.0.0.3', '10.0.0.0/30').valid, false);
 console.log('✓ /30 subnet verification passed');
+
+// 7. Point-to-Point (/30 and /31 RFC 3021) strict validator
+const p2p30 = parsePointToPointHost('10.250.99.2', 30);
+assert.strictEqual(p2p30.valid, true);
+assert.strictEqual(p2p30.hostIp, '10.250.99.2');
+assert.strictEqual(p2p30.peerIp, '10.250.99.1');
+assert.strictEqual(p2p30.cidrInfo?.cidr, '10.250.99.0/30');
+
+assert.strictEqual(parsePointToPointHost('10.250.99.0', 30).valid, false);
+assert.strictEqual(parsePointToPointHost('10.250.99.3', 30).valid, false);
+
+const p2p31 = parsePointToPointHost('10.250.99.4', 31);
+assert.strictEqual(p2p31.valid, true);
+assert.strictEqual(p2p31.peerIp, '10.250.99.5');
+assert.strictEqual(p2p31.cidrInfo?.cidr, '10.250.99.4/31');
+
+assert.strictEqual(parsePointToPointHost('192.168.1.10', 24).valid, false);
+assert.strictEqual(parsePointToPointHost('10.0.0.1', 29).valid, false);
+assert.strictEqual(parsePointToPointHost('10.0.0.1', 32).valid, false);
+console.log('✓ parsePointToPointHost /30 & /31 verification passed');
 
 console.log('--- ALL IPAM TESTS PASSED ---');

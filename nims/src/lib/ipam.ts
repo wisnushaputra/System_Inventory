@@ -153,3 +153,53 @@ export function validateHostIp(ip: string, subnetCidr: string): HostValidationRe
     };
   }
 }
+
+export interface P2pHostResult {
+  valid: boolean;
+  hostIp?: string;
+  peerIp?: string;
+  cidrInfo?: CidrInfo;
+  error?: string;
+}
+
+/**
+ * Validasi host IPv4 khusus link Point-to-Point (/30 atau /31 RFC 3021)
+ * serta menghitung alamat peer lawannya.
+ */
+export function parsePointToPointHost(ip: string, prefix: number): P2pHostResult {
+  if (prefix !== 30 && prefix !== 31) {
+    return {
+      valid: false,
+      error: 'Hanya prefix Point-to-Point /30 atau /31 yang diperbolehkan.',
+    };
+  }
+
+  try {
+    const hostInt = ipToInt(ip);
+    const hostIp = intToIp(hostInt);
+    const cidrInfo = parseCidr(`${hostIp}/${prefix}`);
+    const check = validateHostIp(hostIp, cidrInfo.cidr);
+    if (!check.valid) {
+      return {
+        valid: false,
+        cidrInfo,
+        error: check.error,
+      };
+    }
+
+    const peerIp =
+      hostIp === cidrInfo.firstUsableIp ? cidrInfo.lastUsableIp : cidrInfo.firstUsableIp;
+
+    return {
+      valid: true,
+      hostIp,
+      peerIp,
+      cidrInfo,
+    };
+  } catch (err: unknown) {
+    return {
+      valid: false,
+      error: err instanceof Error ? err.message : 'Format IPv4 tidak valid',
+    };
+  }
+}

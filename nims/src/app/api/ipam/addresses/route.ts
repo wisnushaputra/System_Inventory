@@ -58,7 +58,7 @@ export async function GET(req: Request) {
   const addresses = await prisma.ipAddress.findMany({
     where: whereClause,
     include: {
-      subnet: { select: { id: true, name: true, cidr: true, gatewayIp: true } },
+      subnet: { select: { id: true, name: true, cidr: true, gatewayIp: true, purpose: true } },
       device: { select: { id: true, hostname: true, deviceCode: true } },
       interface: { select: { id: true, name: true, label: true } },
     },

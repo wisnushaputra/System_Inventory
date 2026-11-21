@@ -18,7 +18,13 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
       category: true,
       vendor: true,
       model: true,
-      site: true,
+      site: {
+        include: {
+          parentSite: {
+            select: { id: true, siteCode: true, name: true },
+          },
+        },
+      },
       room: true,
       rack: true,
       creator: { select: { id: true, name: true, username: true } },
@@ -81,6 +87,7 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
   const canEdit = hasPermission(user, 'device.update') || hasPermission(user, 'interface.manage');
   const canArchive = hasPermission(user, 'device.archive');
   const canUploadDoc = hasPermission(user, 'document.upload');
+  const canManageIp = hasPermission(user, 'ipam.manage');
 
   const managementIpObj = device.ipAddresses.find(
     (ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED'
@@ -164,6 +171,7 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
       canEdit={canEdit}
       canArchive={canArchive}
       canUploadDoc={canUploadDoc}
+      canManageIp={canManageIp}
     />
   );
 }

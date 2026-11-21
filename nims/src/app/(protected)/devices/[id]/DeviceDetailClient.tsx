@@ -9,7 +9,10 @@ import {
   IconClose,
   IconRefresh,
   IconPlus,
+  IconCheckCircle,
+  IconLinkCable,
 } from '@/components/Icons';
+import { parsePointToPointHost } from '@/lib/ipam';
 
 interface AuditItem {
   id: number;
@@ -24,6 +27,7 @@ interface SubnetRef {
   id: number;
   name: string;
   cidr: string;
+  purpose?: string;
 }
 interface InterfaceRef {
   id: number;
@@ -136,7 +140,16 @@ interface DeviceDetailProps {
     category: { id: number; name: string; code: string };
     vendor: { id: number; name: string; website: string | null };
     model: { id: number; modelName: string; modelCode: string } | null;
-    site: { id: number; name: string; siteCode: string; address: string | null; city: string | null };
+    site: {
+      id: number;
+      name: string;
+      siteCode: string;
+      siteType: string;
+      parentSiteId: number | null;
+      parentSite?: { id: number; siteCode: string; name: string } | null;
+      address: string | null;
+      city: string | null;
+    };
     room: { id: number; name: string; floor: string | null } | null;
     rack: { id: number; name: string; unitCapacity: number } | null;
     creator: { id: number; name: string; username: string } | null;
@@ -150,6 +163,7 @@ interface DeviceDetailProps {
   canEdit: boolean;
   canArchive: boolean;
   canUploadDoc?: boolean;
+  canManageIp?: boolean;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -189,6 +203,7 @@ export function DeviceDetailClient({
   canEdit,
   canArchive,
   canUploadDoc = false,
+  canManageIp = false,
 }: DeviceDetailProps) {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'
@@ -209,6 +224,26 @@ export function DeviceDetailClient({
 
   const [ipAddresses, setIpAddresses] = useState<IpAddressItem[]>(device.ipAddresses || []);
   const [ipLoading, setIpLoading] = useState(false);
+  const [showManualIpModal, setShowManualIpModal] = useState(false);
+  const [manualIpAddress, setManualIpAddress] = useState('');
+  const [manualIpPrefix, setManualIpPrefix] = useState<30 | 31>(30);
+  const [manualIpInterfaceId, setManualIpInterfaceId] = useState('');
+  const [manualIpDescription, setManualIpDescription] = useState('');
+  const [manualIpSubmitting, setManualIpSubmitting] = useState(false);
+  const [manualIpError, setManualIpError] = useState<string | null>(null);
+  const [ipSuccessMsg, setIpSuccessMsg] = useState<string | null>(null);
+
+  const currentManagementIp =
+    ipAddresses.find((ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED')
+      ?.address ?? null;
+
+  const isP2pEligible =
+    device.site.siteType === 'pop' ||
+    (device.site.siteType === 'customer_site' && device.site.parentSiteId !== null);
+
+  const manualIpPreview = manualIpAddress.trim()
+    ? parsePointToPointHost(manualIpAddress, manualIpPrefix)
+    : null;
 
   const [connections, setConnections] = useState<ConnectionItem[]>(device.connections || []);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
@@ -243,7 +278,12 @@ export function DeviceDetailClient({
 
   useEffect(() => {
     const anyModal =
-      showArchiveModal || showBatchModal || showConnModal || Boolean(archiveConnTarget) || showUploadModal;
+      showArchiveModal ||
+      showBatchModal ||
+      showConnModal ||
+      Boolean(archiveConnTarget) ||
+      showUploadModal ||
+      showManualIpModal;
     if (!anyModal) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -252,11 +292,20 @@ export function DeviceDetailClient({
         setShowConnModal(false);
         setArchiveConnTarget(null);
         setShowUploadModal(false);
+        if (!manualIpSubmitting) setShowManualIpModal(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showArchiveModal, showBatchModal, showConnModal, archiveConnTarget, showUploadModal]);
+  }, [
+    showArchiveModal,
+    showBatchModal,
+    showConnModal,
+    archiveConnTarget,
+    showUploadModal,
+    showManualIpModal,
+    manualIpSubmitting,
+  ]);
 
   const refreshInterfaces = useCallback(async () => {
     setPortsLoading(true);
@@ -506,6 +555,45 @@ export function DeviceDetailClient({
       await refreshInterfaces();
     } finally {
       setBatchSubmitting(false);
+    }
+  };
+
+  const handleOpenManualIpModal = () => {
+    setManualIpAddress('');
+    setManualIpPrefix(30);
+    setManualIpInterfaceId('');
+    setManualIpDescription('');
+    setManualIpError(null);
+    setShowManualIpModal(true);
+  };
+
+  const handleCreateManualP2pIp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setManualIpSubmitting(true);
+    setManualIpError(null);
+    try {
+      const res = await fetch('/api/ipam/addresses/p2p-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: device.id,
+          address: manualIpAddress.trim(),
+          prefix: manualIpPrefix,
+          interfaceId: manualIpInterfaceId ? parseInt(manualIpInterfaceId, 10) : null,
+          description: manualIpDescription.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || 'Gagal menambahkan IP Point-to-Point.');
+      }
+      setShowManualIpModal(false);
+      setIpSuccessMsg(json.message);
+      await refreshIpAddresses();
+    } catch (err: unknown) {
+      setManualIpError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan IP.');
+    } finally {
+      setManualIpSubmitting(false);
     }
   };
 
@@ -783,24 +871,55 @@ export function DeviceDetailClient({
             <div>
               <h2 className="text-sm font-bold text-ink">Alokasi IP Address (IPAM)</h2>
               <p className="text-ink-secondary mt-0.5">
-                Management IP berasal dari alokasi tabel IPAM dengan tujuan management dan status ALLOCATED.
+                Input IP manual dibatasi hanya untuk link Point-to-Point (/30 atau /31) antara POP Induk dan End User (Site Pelanggan).
               </p>
             </div>
-            <button
-              type="button"
-              onClick={refreshIpAddresses}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1 text-ink-secondary hover:bg-subtle hover:text-ink"
-            >
-              <IconRefresh className={`h-3.5 w-3.5 ${ipLoading ? 'animate-spin' : ''}`} />
-              <span>Muat Ulang</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageIp && isP2pEligible && (
+                <button
+                  type="button"
+                  onClick={handleOpenManualIpModal}
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Tambah IP Manual (P2P)</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={refreshIpAddresses}
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1 text-ink-secondary hover:bg-subtle hover:text-ink"
+              >
+                <IconRefresh className={`h-3.5 w-3.5 ${ipLoading ? 'animate-spin' : ''}`} />
+                <span>Muat Ulang</span>
+              </button>
+            </div>
           </div>
 
-          {device.managementIp && (
+          {canManageIp && !isP2pEligible && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-200">
+              <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Input IP manual Point-to-Point hanya tersedia untuk perangkat di lokasi POP Induk atau Site Pelanggan yang terhubung ke POP.
+              </span>
+            </div>
+          )}
+
+          {ipSuccessMsg && (
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2.5 text-xs font-medium text-emerald-900 dark:text-emerald-200"
+            >
+              <IconCheckCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{ipSuccessMsg}</span>
+            </div>
+          )}
+
+          {currentManagementIp && (
             <div className="flex items-center gap-2 rounded-lg bg-accent-soft border border-accent/30 px-4 py-2.5">
               <span className="text-accent-ink font-semibold text-xs">Management IP:</span>
               <span className="font-mono font-bold text-accent-ink text-sm">
-                {device.managementIp}
+                {currentManagementIp}
               </span>
             </div>
           )}
@@ -810,7 +929,21 @@ export function DeviceDetailClient({
           ) : ipAddresses.length === 0 ? (
             <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary">
               <p className="font-medium text-ink">Belum ada IP address yang dialokasikan ke perangkat ini.</p>
-              <p className="text-[11px] mt-1">Alokasikan IP melalui halaman IPAM Subnets.</p>
+              <p className="text-[11px] mt-1">
+                {canManageIp && isP2pEligible
+                  ? 'Tambahkan IP Point-to-Point (/30 atau /31) antara POP dan Site Pelanggan untuk mengatur Management IP perangkat ini.'
+                  : 'Alokasikan IP Point-to-Point melalui halaman detail perangkat oleh Network Engineer atau Admin.'}
+              </p>
+              {canManageIp && isP2pEligible && (
+                <button
+                  type="button"
+                  onClick={handleOpenManualIpModal}
+                  className="mt-4 inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Tambah IP Manual (P2P)</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-line">
@@ -822,8 +955,8 @@ export function DeviceDetailClient({
                     <th className="px-3.5 py-2.5">Interface</th>
                     <th className="px-3.5 py-2.5">Purpose</th>
                     <th className="px-3.5 py-2.5">Status</th>
-                    <th className="px-3.5 py-2.5">Hostname</th>
-                    {canEdit && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
+                    <th className="px-3.5 py-2.5">Hostname / Catatan</th>
+                    {canManageIp && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -833,7 +966,14 @@ export function DeviceDetailClient({
                         {ip.address}
                       </td>
                       <td className="px-3.5 py-2.5 font-mono text-ink-secondary text-[11px]">
-                        <span className="text-ink">{ip.subnet.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-ink">{ip.subnet.name}</span>
+                          {ip.subnet.purpose === 'point_to_point' && (
+                            <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink">
+                              P2P
+                            </span>
+                          )}
+                        </div>
                         <span className="block text-ink-muted">{ip.subnet.cidr}</span>
                       </td>
                       <td className="px-3.5 py-2.5 text-ink-secondary">
@@ -851,8 +991,13 @@ export function DeviceDetailClient({
                           {ip.allocationStatus}
                         </span>
                       </td>
-                      <td className="px-3.5 py-2.5 text-ink-secondary">{ip.hostname || '-'}</td>
-                      {canEdit && (
+                      <td className="px-3.5 py-2.5 text-ink-secondary">
+                        <div>{ip.hostname || '-'}</div>
+                        {ip.description && (
+                          <div className="text-[11px] text-ink-muted">{ip.description}</div>
+                        )}
+                      </td>
+                      {canManageIp && (
                         <td className="px-3.5 py-2.5 text-right">
                           {ip.allocationStatus === 'ALLOCATED' && (
                             <button
@@ -1903,6 +2048,184 @@ export function DeviceDetailClient({
                   className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {uploadSubmitting ? 'Mengunggah...' : 'Unggah Sekarang'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TAMBAH MANAGEMENT IP MANUAL P2P */}
+      {showManualIpModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+          onClick={() => {
+            if (!manualIpSubmitting) setShowManualIpModal(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manual-p2p-ip-title"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-xl border border-line bg-elevated p-5 shadow-2xl animate-modal space-y-4 text-xs"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <div>
+                <h3 id="manual-p2p-ip-title" className="text-base font-bold text-ink">
+                  Tambah Management IP Manual (Point-to-Point)
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-secondary">
+                  Khusus pengalamatan IP Point-to-Point (/30 atau /31) antara POP Induk dan End User.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={manualIpSubmitting}
+                onClick={() => setShowManualIpModal(false)}
+                aria-label="Tutup dialog"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle hover:text-ink disabled:opacity-50"
+              >
+                <IconClose className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5 rounded-lg border border-line bg-accent-soft px-3.5 py-2.5 text-xs text-accent-ink">
+              <IconLinkCable className="h-4 w-4 shrink-0" />
+              <span>
+                Jalur Link:{' '}
+                {device.site.siteType === 'customer_site' && device.site.parentSite ? (
+                  <>
+                    <strong className="font-mono">{device.site.parentSite.siteCode}</strong>
+                    {' -> '}
+                    <strong className="font-mono">{device.site.siteCode}</strong> ({device.site.name})
+                  </>
+                ) : (
+                  <>
+                    POP Induk <strong className="font-mono">{device.site.siteCode}</strong> ({device.site.name}) ke End User
+                  </>
+                )}
+              </span>
+            </div>
+
+            {manualIpError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 p-3 text-xs text-rose-800 dark:text-rose-200"
+              >
+                <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{manualIpError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateManualP2pIp} className="space-y-3.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label htmlFor="p2p-ip-address" className="block font-semibold text-ink-secondary">
+                    Alamat IPv4 Host *
+                  </label>
+                  <input
+                    id="p2p-ip-address"
+                    type="text"
+                    required
+                    placeholder="Contoh: 10.10.20.2"
+                    value={manualIpAddress}
+                    onChange={(e) => setManualIpAddress(e.target.value)}
+                    className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs font-mono text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="p2p-ip-prefix" className="block font-semibold text-ink-secondary">
+                    Prefix P2P *
+                  </label>
+                  <select
+                    id="p2p-ip-prefix"
+                    value={manualIpPrefix}
+                    onChange={(e) => setManualIpPrefix(Number(e.target.value) as 30 | 31)}
+                    className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs font-mono text-ink focus:border-accent focus:outline-none"
+                  >
+                    <option value={30}>/30 (P2P Standar)</option>
+                    <option value={31}>/31 (P2P RFC 3021)</option>
+                  </select>
+                </div>
+              </div>
+
+              {manualIpPreview && (
+                manualIpPreview.valid && manualIpPreview.cidrInfo ? (
+                  <div className="rounded-lg border border-line bg-subtle p-3 space-y-1.5">
+                    <p className="font-semibold text-ink">Pratinjau Subnet Point-to-Point</p>
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 font-mono text-[11px]">
+                      <div>
+                        <span className="block text-ink-muted">Subnet CIDR</span>
+                        <span className="font-semibold text-ink">{manualIpPreview.cidrInfo.cidr}</span>
+                      </div>
+                      <div>
+                        <span className="block text-ink-muted">IP Perangkat Ini</span>
+                        <span className="font-semibold text-accent-ink">{manualIpPreview.hostIp}</span>
+                      </div>
+                      <div>
+                        <span className="block text-ink-muted">IP Peer Lawan</span>
+                        <span className="font-semibold text-ink">{manualIpPreview.peerIp}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 p-2.5 text-[11px] text-rose-800 dark:text-rose-200">
+                    {manualIpPreview.error}
+                  </div>
+                )
+              )}
+
+              <div>
+                <label htmlFor="p2p-ip-iface" className="block font-semibold text-ink-secondary">
+                  Port / Interface Perangkat (Opsional)
+                </label>
+                <select
+                  id="p2p-ip-iface"
+                  value={manualIpInterfaceId}
+                  onChange={(e) => setManualIpInterfaceId(e.target.value)}
+                  className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                >
+                  <option value="">Tanpa ikatan port spesifik</option>
+                  {interfaces.map((iface) => (
+                    <option key={iface.id} value={iface.id}>
+                      {iface.name} {iface.label ? `(${iface.label})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="p2p-ip-desc" className="block font-semibold text-ink-secondary">
+                  Catatan Link (Opsional)
+                </label>
+                <input
+                  id="p2p-ip-desc"
+                  type="text"
+                  maxLength={500}
+                  placeholder="Contoh: Uplink P2P ke POP Bandung Dago"
+                  value={manualIpDescription}
+                  onChange={(e) => setManualIpDescription(e.target.value)}
+                  className="mt-1 min-h-[40px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-line pt-3">
+                <button
+                  type="button"
+                  disabled={manualIpSubmitting}
+                  onClick={() => setShowManualIpModal(false)}
+                  className="min-h-[40px] rounded-lg border border-line bg-surface px-4 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualIpSubmitting || !manualIpPreview?.valid}
+                  className="min-h-[40px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {manualIpSubmitting ? 'Menyimpan...' : 'Simpan IP P2P'}
                 </button>
               </div>
             </form>
