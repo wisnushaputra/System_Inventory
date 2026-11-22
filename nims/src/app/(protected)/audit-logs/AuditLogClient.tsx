@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { IconDownload, IconRefresh, IconClose, IconArrowLeft, IconArrowRight } from '@/components/Icons';
+import Link from 'next/link';
+import {
+  IconDownload,
+  IconRefresh,
+  IconClose,
+  IconArrowLeft,
+  IconArrowRight,
+  IconExternalLink,
+} from '@/components/Icons';
 
 interface AuditItem {
   id: number;
@@ -38,7 +46,7 @@ const ACTION_COLORS: Record<string, string> = {
   ARCHIVE:
     'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70',
   RESTORE:
-    'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/70',
+    'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/70',
   UPLOAD_DOCUMENT:
     'bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/70',
   DOWNLOAD_DOCUMENT:
@@ -83,6 +91,106 @@ const ACTION_OPTIONS = [
   'LOGOUT',
   'ACCESS_DENIED',
 ];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getPositiveInt(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function extractEntityLabel(log: AuditItem): string | null {
+  const src = asRecord(log.afterData) ?? asRecord(log.beforeData);
+  if (!src) return null;
+  const candidate =
+    src.hostname ??
+    src.deviceCode ??
+    src.siteCode ??
+    src.cidr ??
+    src.address ??
+    src.modelCode ??
+    src.originalFilename ??
+    src.name ??
+    src.username;
+  return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : null;
+}
+
+function resolveAuditEntityLink(log: AuditItem): { href: string; label: string } | null {
+  const after = asRecord(log.afterData);
+  const before = asRecord(log.beforeData);
+  const meta = after ?? before;
+  const isDeleted = log.action === 'DELETE';
+
+  switch (log.entityType) {
+    case 'Device':
+      if (!log.entityId || isDeleted) return null;
+      return { href: `/devices/${log.entityId}`, label: 'Buka Perangkat' };
+    case 'Interface': {
+      const devId = getPositiveInt(meta?.deviceId ?? before?.deviceId);
+      if (!devId) return null;
+      return { href: `/devices/${devId}?tab=ports`, label: 'Lihat Port' };
+    }
+    case 'Document': {
+      const devId = getPositiveInt(meta?.deviceId ?? before?.deviceId);
+      if (!devId) return null;
+      return { href: `/devices/${devId}?tab=documents`, label: 'Lihat Dokumen' };
+    }
+    case 'NetworkConnection': {
+      const devId = getPositiveInt(
+        meta?.deviceId ?? meta?.endpointADeviceId ?? before?.deviceId ?? before?.endpointADeviceId
+      );
+      if (devId) {
+        return { href: `/devices/${devId}?tab=connections`, label: 'Lihat Koneksi' };
+      }
+      return { href: '/topology', label: 'Buka Topologi' };
+    }
+    case 'Site':
+      if (log.entityId && !isDeleted) {
+        return { href: `/map?siteId=${log.entityId}`, label: 'Lihat di Peta' };
+      }
+      return { href: '/master?tab=sites', label: 'Master Site' };
+    case 'Room':
+    case 'Rack':
+      return { href: '/master?tab=sites', label: 'Master Lokasi' };
+    case 'Vendor':
+      return { href: '/master?tab=vendors', label: 'Master Vendor' };
+    case 'DeviceCategory':
+      return { href: '/master?tab=categories', label: 'Master Kategori' };
+    case 'DeviceModel':
+      return { href: '/master?tab=models', label: 'Master Model' };
+    case 'Subnet':
+      if (log.entityId && !isDeleted) {
+        return { href: `/ipam?subnetId=${log.entityId}`, label: 'Lihat Subnet' };
+      }
+      return { href: '/ipam', label: 'Buka IPAM' };
+    case 'IpAddress': {
+      const devId = getPositiveInt(meta?.deviceId ?? before?.deviceId);
+      if (devId) {
+        return { href: `/devices/${devId}?tab=network`, label: 'Jaringan Perangkat' };
+      }
+      const subId = getPositiveInt(meta?.subnetId ?? before?.subnetId);
+      if (subId) {
+        return { href: `/ipam?tab=addresses&subnetId=${subId}`, label: 'Lihat IPAM' };
+      }
+      const addr = typeof meta?.address === 'string' ? meta.address : null;
+      if (addr) {
+        return { href: `/ipam?tab=addresses&q=${encodeURIComponent(addr)}`, label: 'Cari di IPAM' };
+      }
+      return { href: '/ipam?tab=addresses', label: 'Buka IPAM' };
+    }
+    case 'User':
+      return { href: '/users', label: 'Kelola Pengguna' };
+    default:
+      return null;
+  }
+}
 
 export function AuditLogClient({ users, canExport }: Props) {
   const [logs, setLogs] = useState<AuditItem[]>([]);
@@ -366,54 +474,81 @@ export function AuditLogClient({ users, canExport }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {logs.map((log) => (
-                  <tr key={log.id} className="transition-colors duration-100 hover:bg-subtle/60">
-                    <td className="py-3 px-4 font-mono text-[11px] text-ink-secondary whitespace-nowrap tabular-nums-data">
-                      {new Date(log.createdAt).toLocaleString('id-ID')}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-ink">
-                        {log.user ? log.user.name : 'System'}
-                      </div>
-                      <div className="text-[10px] text-ink-muted font-mono">
-                        {log.user ? `@${log.user.username}` : '-'}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          ACTION_COLORS[log.action] || 'bg-subtle text-ink-secondary border-line'
-                        }`}
-                      >
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-ink">
-                      <span>{log.entityType}</span>
-                      {log.entityId && (
-                        <span className="font-mono text-ink-muted text-[11px] ml-1">
-                          #{log.entityId}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-ink-secondary">
-                      {log.ipAddress || '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {log.beforeData || log.afterData ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLog(log)}
-                          className="rounded-md border border-accent/30 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent-ink hover:opacity-90"
+                {logs.map((log) => {
+                  const entityLink = resolveAuditEntityLink(log);
+                  const entityLabel = extractEntityLabel(log);
+                  return (
+                    <tr key={log.id} className="transition-colors duration-100 hover:bg-subtle/60">
+                      <td className="py-3 px-4 font-mono text-[11px] text-ink-secondary whitespace-nowrap tabular-nums-data">
+                        {new Date(log.createdAt).toLocaleString('id-ID')}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-ink">
+                          {log.user ? log.user.name : 'System'}
+                        </div>
+                        <div className="text-[10px] text-ink-muted font-mono">
+                          {log.user ? `@${log.user.username}` : '-'}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            ACTION_COLORS[log.action] || 'bg-subtle text-ink-secondary border-line'
+                          }`}
                         >
-                          Lihat Diff
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-ink-muted">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-medium text-ink">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {entityLink ? (
+                            <Link
+                              href={entityLink.href}
+                              title={entityLink.label}
+                              className="inline-flex items-center gap-1 rounded px-1 -mx-1 font-semibold text-accent-ink hover:underline"
+                            >
+                              <span>{log.entityType}</span>
+                              {log.entityId && (
+                                <span className="font-mono text-[11px]">#{log.entityId}</span>
+                              )}
+                              <IconExternalLink className="h-3 w-3 shrink-0" />
+                            </Link>
+                          ) : (
+                            <>
+                              <span>{log.entityType}</span>
+                              {log.entityId && (
+                                <span className="font-mono text-ink-muted text-[11px]">
+                                  #{log.entityId}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {entityLabel && (
+                          <div className="mt-0.5 truncate max-w-[220px] font-mono text-[10px] text-ink-muted">
+                            {entityLabel}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-ink-secondary">
+                        {log.ipAddress || '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {log.beforeData || log.afterData ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLog(log)}
+                            className="rounded-md border border-accent/30 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent-ink hover:opacity-90"
+                          >
+                            Lihat Diff
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-ink-muted">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -503,7 +638,19 @@ export function AuditLogClient({ users, canExport }: Props) {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-line">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-line">
+              {(() => {
+                const modalLink = resolveAuditEntityLink(selectedLog);
+                return modalLink ? (
+                  <Link
+                    href={modalLink.href}
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-accent/40 bg-accent-soft px-3.5 py-1.5 text-xs font-semibold text-accent-ink hover:opacity-90"
+                  >
+                    <span>{modalLink.label}</span>
+                    <IconExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                ) : null;
+              })()}
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}

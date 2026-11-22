@@ -3,47 +3,47 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg-canvas: #f5f7f6;
+  --bg-canvas: #f6f8fb;
   --bg-surface: #ffffff;
-  --bg-subtle: #edf1f0;
+  --bg-subtle: #eef2f7;
   --bg-elevated: #ffffff;
 
-  --text-primary: #14181f;
-  --text-secondary: #4b5563;
-  --text-muted: #546170;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #526075;
 
-  --border-default: #dce2e0;
-  --border-strong: #c2cbc8;
+  --border-default: #dce3ee;
+  --border-strong: #c2ccdc;
 
-  --accent: #0f6e6e;
-  --accent-hover: #0c5959;
-  --accent-soft: #e6f4f3;
-  --accent-ink: #0b5252;
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: #eaf1fe;
+  --accent-ink: #1e3a8a;
   --accent-fg: #ffffff;
 
-  --focus-ring: #0f6e6e;
+  --focus-ring: #2563eb;
 }
 
 .dark {
-  --bg-canvas: #0f1419;
-  --bg-surface: #171d24;
-  --bg-subtle: #1d252e;
-  --bg-elevated: #1f2933;
+  --bg-canvas: #0c1118;
+  --bg-surface: #141b24;
+  --bg-subtle: #1b2431;
+  --bg-elevated: #1e2836;
 
-  --text-primary: #edf2f7;
-  --text-secondary: #9aa7b4;
-  --text-muted: #95a4b3;
+  --text-primary: #edf2f8;
+  --text-secondary: #9aa7b8;
+  --text-muted: #93a3b8;
 
-  --border-default: #27323f;
-  --border-strong: #374657;
+  --border-default: #263345;
+  --border-strong: #36475e;
 
-  --accent: #2dd4bf;
-  --accent-hover: #14b8a6;
-  --accent-soft: #132c2e;
-  --accent-ink: #5eead4;
-  --accent-fg: #081415;
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-soft: #17253d;
+  --accent-ink: #93c5fd;
+  --accent-fg: #0b1628;
 
-  --focus-ring: #2dd4bf;
+  --focus-ring: #60a5fa;
 }
 
 @theme inline {
@@ -296,5 +296,34 @@
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  @page {
+    margin: 8mm;
+  }
+
+  html:has(body.nims-print-qr),
+  body.nims-print-qr {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body.nims-print-qr > *:not(#nims-qr-print-root) {
+    display: none !important;
+  }
+
+  #nims-qr-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
 }

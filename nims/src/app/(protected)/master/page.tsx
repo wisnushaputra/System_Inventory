@@ -4,8 +4,17 @@ import { MasterDataClient } from './MasterDataClient';
 
 export const instant = false;
 
-export default async function MasterDataPage() {
+type MasterTab = 'sites' | 'vendors' | 'categories' | 'models';
+
+const VALID_MASTER_TABS = new Set<MasterTab>(['sites', 'vendors', 'categories', 'models']);
+
+export default async function MasterDataPage(props: {
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const user = await requirePermission('site.view');
+  const sp = props.searchParams ? await props.searchParams : {};
+  const rawTab = sp.tab as MasterTab | undefined;
+  const initialTab: MasterTab = rawTab && VALID_MASTER_TABS.has(rawTab) ? rawTab : 'sites';
 
   const [sites, vendors, categories, models] = await Promise.all([
     prisma.site.findMany({
@@ -49,6 +58,7 @@ export default async function MasterDataPage() {
         models={models}
         canManageSites={canManageSites}
         canManageVendors={canManageVendors}
+        initialTab={initialTab}
       />
     </div>
   );

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/ThemeProvider';
 import {
-  NimsBrandMark,
+  PassnetBrandMark,
+  PassnetWordmark,
   IconEye,
   IconEyeOff,
   IconAlertTriangle,
@@ -51,14 +52,20 @@ export default function LoginPage() {
     <div className="min-h-dvh bg-canvas text-ink flex flex-col lg:grid lg:grid-cols-12">
       {/* Left Architectural Identity Panel */}
       <section
-        aria-label="Informasi Sistem NIMS"
-        className="relative hidden lg:col-span-6 lg:flex lg:flex-col lg:justify-between bg-[#0B3B3C] dark:bg-[#0D2124] text-white p-10 xl:p-14 border-r border-teal-900/40"
+        aria-label="Informasi Passnet Inventory Sistem"
+        className="relative hidden lg:col-span-6 lg:flex lg:flex-col lg:justify-between bg-[#0F1E36] dark:bg-[#0B1526] text-white p-10 xl:p-14 border-r border-blue-900/40"
       >
-        <div className="flex items-center gap-3">
-          <NimsBrandMark className="h-9 w-9 shrink-0" />
+        <div className="flex flex-wrap items-center gap-3.5">
+          <div className="inline-flex items-center rounded-xl bg-white px-3.5 py-2 shadow-sm">
+            <PassnetWordmark className="h-9 w-auto" alt="Logo Passnet" />
+          </div>
           <div>
-            <p className="text-base font-bold tracking-tight">NIMS</p>
-            <p className="text-xs font-mono text-teal-200">Network Inventory Management System</p>
+            <p className="text-base font-bold tracking-tight text-white">
+              Passnet Inventory Sistem
+            </p>
+            <p className="text-xs font-mono text-blue-200">
+              Network Inventory Management System
+            </p>
           </div>
         </div>
 
@@ -67,14 +74,14 @@ export default function LoginPage() {
             <h2 className="text-3xl font-bold tracking-tight leading-tight text-white">
               Dokumentasi infrastruktur jaringan dalam satu pusat kerja.
             </h2>
-            <p className="text-sm leading-relaxed text-teal-100">
+            <p className="text-sm leading-relaxed text-slate-200">
               Catat aset perangkat per POP dan lokasi pelanggan, lacak alokasi subnet IP, petakan relasi kabel antarport, dan simpan jejak perubahan secara tertib.
             </p>
           </div>
 
           {/* Schematic Node Topology Diagram (direct visual connection to hierarchy) */}
-          <div className="rounded-xl border border-teal-700/60 bg-[#082C2D] p-5">
-            <p className="mb-3 text-[11px] font-mono uppercase tracking-wider text-teal-200">
+          <div className="rounded-xl border border-blue-700/50 bg-[#0B172B] p-5">
+            <p className="mb-3 text-[11px] font-mono uppercase tracking-wider text-blue-200">
               Struktur Hierarki Terkelola
             </p>
             <svg
@@ -83,71 +90,73 @@ export default function LoginPage() {
               role="img"
               aria-label="Diagram alur POP ke Site Pelanggan dan Perangkat"
             >
-              <line x1="88" y1="55" x2="152" y2="30" stroke="#5EEAD4" strokeWidth="1.75" />
-              <line x1="88" y1="55" x2="152" y2="80" stroke="#5EEAD4" strokeWidth="1.75" strokeDasharray="4 3" />
-              <line x1="238" y1="30" x2="292" y2="30" stroke="#5EEAD4" strokeWidth="1.75" />
-              <line x1="238" y1="80" x2="292" y2="80" stroke="#5EEAD4" strokeWidth="1.75" />
+              <line x1="88" y1="55" x2="152" y2="30" stroke="#93C5FD" strokeWidth="1.75" />
+              <line x1="88" y1="55" x2="152" y2="80" stroke="#93C5FD" strokeWidth="1.75" strokeDasharray="4 3" />
+              <line x1="238" y1="30" x2="292" y2="30" stroke="#93C5FD" strokeWidth="1.75" />
+              <line x1="238" y1="80" x2="292" y2="80" stroke="#93C5FD" strokeWidth="1.75" />
 
-              <rect x="8" y="37" width="80" height="36" rx="6" fill="#0F4E4F" stroke="#2DD4BF" strokeWidth="1.5" />
+              <rect x="8" y="37" width="80" height="36" rx="6" fill="#1E3A8A" stroke="#60A5FA" strokeWidth="1.5" />
               <text x="48" y="59" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="600" fontFamily="monospace">
                 POP Induk
               </text>
 
-              <rect x="152" y="12" width="86" height="36" rx="6" fill="#134E4A" stroke="#5EEAD4" strokeWidth="1.2" />
-              <text x="195" y="34" textAnchor="middle" fill="#F0FDFA" fontSize="11" fontWeight="500" fontFamily="sans-serif">
+              <rect x="152" y="12" width="86" height="36" rx="6" fill="#172554" stroke="#93C5FD" strokeWidth="1.2" />
+              <text x="195" y="34" textAnchor="middle" fill="#EFF6FF" fontSize="11" fontWeight="500" fontFamily="sans-serif">
                 Site A
               </text>
 
-              <rect x="152" y="62" width="86" height="36" rx="6" fill="#134E4A" stroke="#5EEAD4" strokeWidth="1.2" />
-              <text x="195" y="84" textAnchor="middle" fill="#F0FDFA" fontSize="11" fontWeight="500" fontFamily="sans-serif">
+              <rect x="152" y="62" width="86" height="36" rx="6" fill="#172554" stroke="#93C5FD" strokeWidth="1.2" />
+              <text x="195" y="84" textAnchor="middle" fill="#EFF6FF" fontSize="11" fontWeight="500" fontFamily="sans-serif">
                 Site B
               </text>
 
-              <rect x="292" y="12" width="80" height="36" rx="6" fill="#093637" stroke="#99F6E4" strokeWidth="1.2" />
+              <rect x="292" y="12" width="80" height="36" rx="6" fill="#0F172A" stroke="#BFDBFE" strokeWidth="1.2" />
               <text x="332" y="34" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontFamily="monospace">
                 Router
               </text>
 
-              <rect x="292" y="62" width="80" height="36" rx="6" fill="#093637" stroke="#99F6E4" strokeWidth="1.2" />
+              <rect x="292" y="62" width="80" height="36" rx="6" fill="#0F172A" stroke="#BFDBFE" strokeWidth="1.2" />
               <text x="332" y="84" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontFamily="monospace">
                 Switch
               </text>
             </svg>
           </div>
 
-          <ul className="grid grid-cols-2 gap-3 text-xs text-teal-100">
+          <ul className="grid grid-cols-2 gap-3 text-xs text-slate-200">
             <li className="flex items-center gap-2.5">
-              <IconServer className="h-4 w-4 shrink-0 text-teal-300" />
+              <IconServer className="h-4 w-4 shrink-0 text-blue-300" />
               <span>Inventaris perangkat per site</span>
             </li>
             <li className="flex items-center gap-2.5">
-              <IconSubnetGlobe className="h-4 w-4 shrink-0 text-teal-300" />
+              <IconSubnetGlobe className="h-4 w-4 shrink-0 text-blue-300" />
               <span>Alokasi IPAM dan validasi CIDR</span>
             </li>
             <li className="flex items-center gap-2.5">
-              <IconTopology className="h-4 w-4 shrink-0 text-teal-300" />
+              <IconTopology className="h-4 w-4 shrink-0 text-blue-300" />
               <span>Graf topologi port terhubung</span>
             </li>
             <li className="flex items-center gap-2.5">
-              <IconAudit className="h-4 w-4 shrink-0 text-teal-300" />
+              <IconAudit className="h-4 w-4 shrink-0 text-blue-300" />
               <span>Catatan audit perubahan data</span>
             </li>
           </ul>
         </div>
 
-        <p className="text-xs text-teal-200/90 font-mono">
+        <p className="text-xs text-blue-200/90 font-mono">
           Akses berbasis peran: Admin, Network Engineer, Operator NOC, Supervisor.
         </p>
       </section>
 
       {/* Right Sign-in Column */}
       <div className="relative flex flex-1 flex-col justify-between p-5 sm:p-8 lg:col-span-6">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <NimsBrandMark className="h-7 w-7 shrink-0" />
-            <span className="text-base font-bold tracking-tight text-ink">NIMS</span>
+        <header className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
+            <PassnetBrandMark className="h-8 w-8 shrink-0" />
+            <span className="truncate text-sm font-bold tracking-tight text-ink">
+              Passnet Inventory Sistem
+            </span>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <ThemeToggle />
           </div>
         </header>
@@ -155,7 +164,9 @@ export default function LoginPage() {
         <main className="mx-auto my-auto w-full max-w-md py-8 animate-enter">
           <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 shadow-sm">
             <div className="space-y-1.5 border-b border-line pb-5">
-              <h1 className="text-2xl font-bold tracking-tight text-ink">Masuk ke NIMS</h1>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
+                Masuk ke Passnet Inventory Sistem
+              </h1>
               <p className="text-sm text-ink-secondary">
                 Masukkan kredensial akun operasional Anda untuk membuka inventaris jaringan.
               </p>
@@ -234,7 +245,7 @@ export default function LoginPage() {
         </main>
 
         <footer className="text-center text-xs text-ink-muted">
-          Portal Inventaris Jaringan Internal (NIMS)
+          Passnet Inventory Sistem - Portal Inventaris Jaringan Internal
         </footer>
       </div>
     </div>

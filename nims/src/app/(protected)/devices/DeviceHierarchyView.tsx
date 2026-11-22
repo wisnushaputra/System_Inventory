@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Link from 'next/link';
+import { useFeedback } from '@/components/FeedbackProvider';
+import { buildGoogleMapsUrl, formatCoordinates, haversineDistanceKm } from '@/lib/geo';
 import {
   IconPopBuilding,
   IconSitePin,
@@ -14,6 +16,7 @@ import {
   IconArrowRight,
   IconPlus,
   IconCheckCircle,
+  IconExternalLink,
 } from '@/components/Icons';
 import { AddCustomerSiteModal } from '@/components/AddCustomerSiteModal';
 
@@ -25,6 +28,8 @@ interface PopItem {
   city: string | null;
   province: string | null;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   description: string | null;
   customerSiteCount: number;
@@ -40,6 +45,8 @@ interface CustomerSiteItem {
   address: string | null;
   city: string | null;
   province: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   description: string | null;
   deviceCount: number;
@@ -64,6 +71,16 @@ interface DeviceItem {
   rack: { id: number; name: string } | null;
 }
 
+export interface HierarchyHeaderContext {
+  level: 'pop' | 'site' | 'devices';
+  siteId?: number;
+}
+
+export interface DeviceHierarchyViewHandle {
+  openAddPopModal: () => void;
+  openAddCustomerModal: () => void;
+}
+
 interface Props {
   canCreate: boolean;
   canArchive: boolean;
@@ -73,15 +90,21 @@ interface Props {
   vendors: { id: number; name: string }[];
   initialPopId?: number | null;
   initialSiteId?: number | null;
+  onContextChange?: (ctx: HierarchyHeaderContext) => void;
 }
 
-export function DeviceHierarchyView({
-  canCreate,
-  canArchive,
-  canManageSites = false,
-  categories,
-  vendors,
-}: Props) {
+export const DeviceHierarchyView = forwardRef<DeviceHierarchyViewHandle, Props>(function DeviceHierarchyView(
+  {
+    canCreate,
+    canArchive,
+    canManageSites = false,
+    categories,
+    vendors,
+    onContextChange,
+  },
+  ref
+) {
+  const { toast } = useFeedback();
   const [selectedPop, setSelectedPop] = useState<PopItem | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSiteItem | null>(null);
   const [drillDir, setDrillDir] = useState<'forward' | 'back'>('forward');
@@ -114,9 +137,28 @@ export function DeviceHierarchyView({
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [showAddPopModal, setShowAddPopModal] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    openAddPopModal: () => setShowAddPopModal(true),
+    openAddCustomerModal: () => setShowAddCustomerModal(true),
+  }));
+
+  useEffect(() => {
+    if (!onContextChange) return;
+    if (!selectedPop) {
+      onContextChange({ level: 'pop' });
+    } else if (selectedCustomer) {
+      onContextChange({ level: 'devices', siteId: selectedCustomer.id });
+    } else if (activeTabLevel2 === 'pop_internal') {
+      onContextChange({ level: 'devices', siteId: selectedPop.id });
+    } else {
+      onContextChange({ level: 'site', siteId: selectedPop.id });
+    }
+  }, [selectedPop, selectedCustomer, activeTabLevel2, onContextChange]);
 
   useEffect(() => {
     if (!archiveTarget) return;
@@ -465,6 +507,11 @@ export function DeviceHierarchyView({
                     {pop.address && (
                       <p className="mt-1 text-xs text-ink-muted line-clamp-1">{pop.address}</p>
                     )}
+                    {formatCoordinates(pop.latitude, pop.longitude, 4) && (
+                      <p className="mt-1 font-mono text-[11px] text-accent-ink">
+                        GPS: {formatCoordinates(pop.latitude, pop.longitude, 4)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-5 w-full pt-4 border-t border-line">
@@ -521,6 +568,22 @@ export function DeviceHierarchyView({
                   {selectedPop.province ? `, ${selectedPop.province}` : ''}
                 </span>
               </p>
+              {selectedPop.latitude != null && selectedPop.longitude != null && (
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-mono text-ink-muted">
+                    GPS: {formatCoordinates(selectedPop.latitude, selectedPop.longitude)}
+                  </span>
+                  <a
+                    href={buildGoogleMapsUrl(selectedPop.latitude, selectedPop.longitude)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-accent-ink hover:underline"
+                  >
+                    <span>Buka Google Maps</span>
+                    <IconExternalLink className="h-3 w-3" />
+                  </a>
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -536,24 +599,10 @@ export function DeviceHierarchyView({
                 <IconArrowLeft className="h-3.5 w-3.5" />
                 <span>Ganti POP</span>
               </button>
-              {canManageSites && (
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustomerModal(true)}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
-                >
-                  <IconPlus className="h-3.5 w-3.5" />
-                  <span>Tambah Site Pelanggan</span>
-                </button>
-              )}
-              {canCreate && (
+              {canCreate && activeTabLevel2 === 'customers' && (
                 <Link
                   href={`/devices/new?siteId=${selectedPop.id}`}
-                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-xs ${
-                    canManageSites
-                      ? 'border border-line bg-surface text-ink hover:bg-subtle'
-                      : 'bg-accent text-accent-fg hover:bg-accent-hover'
-                  }`}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-2 text-xs font-semibold text-ink hover:bg-subtle shadow-xs"
                 >
                   <IconPlus className="h-3.5 w-3.5" />
                   <span>Tambah Perangkat ke POP</span>
@@ -674,6 +723,19 @@ export function DeviceHierarchyView({
                           <IconSitePin className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
                           <span>{cust.address || cust.city || 'Alamat belum diatur'}</span>
                         </p>
+                        {cust.latitude != null && cust.longitude != null && (
+                          <p className="mt-1 font-mono text-[11px] text-accent-ink">
+                            {formatCoordinates(cust.latitude, cust.longitude, 4)}
+                            {selectedPop.latitude != null && selectedPop.longitude != null
+                              ? ` (${haversineDistanceKm(
+                                  selectedPop.latitude,
+                                  selectedPop.longitude,
+                                  cust.latitude,
+                                  cust.longitude
+                                ).toFixed(1)} km dari POP)`
+                              : ''}
+                          </p>
+                        )}
                       </div>
 
                       <div className="mt-4 w-full pt-3 border-t border-line flex items-center justify-between">
@@ -735,6 +797,30 @@ export function DeviceHierarchyView({
                   {selectedCustomer.city || selectedPop.city || ''}
                 </span>
               </p>
+              {selectedCustomer.latitude != null && selectedCustomer.longitude != null && (
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-mono text-ink-muted">
+                    GPS: {formatCoordinates(selectedCustomer.latitude, selectedCustomer.longitude)}
+                    {selectedPop.latitude != null && selectedPop.longitude != null
+                      ? ` (${haversineDistanceKm(
+                          selectedPop.latitude,
+                          selectedPop.longitude,
+                          selectedCustomer.latitude,
+                          selectedCustomer.longitude
+                        ).toFixed(2)} km dari POP)`
+                      : ''}
+                  </span>
+                  <a
+                    href={buildGoogleMapsUrl(selectedCustomer.latitude, selectedCustomer.longitude)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-accent-ink hover:underline"
+                  >
+                    <span>Buka Google Maps</span>
+                    <IconExternalLink className="h-3 w-3" />
+                  </a>
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -749,15 +835,6 @@ export function DeviceHierarchyView({
                 <IconArrowLeft className="h-3.5 w-3.5" />
                 <span>Ganti Customer</span>
               </button>
-              {canCreate && (
-                <Link
-                  href={`/devices/new?siteId=${selectedCustomer.id}`}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
-                >
-                  <IconPlus className="h-3.5 w-3.5" />
-                  <span>Tambah Perangkat ke Site Ini</span>
-                </Link>
-              )}
             </div>
           </div>
 
@@ -833,13 +910,26 @@ export function DeviceHierarchyView({
       )}
 
       <AddCustomerSiteModal
+        open={showAddPopModal}
+        mode="pop"
+        onClose={() => setShowAddPopModal(false)}
+        onCreated={(created) => {
+          const msg = `POP '${created.name}' (${created.siteCode}) berhasil ditambahkan.`;
+          setSuccessMsg(msg);
+          toast.success(msg);
+          fetchPops();
+        }}
+      />
+
+      <AddCustomerSiteModal
         open={showAddCustomerModal && !!selectedPop}
+        mode="customer"
         pop={selectedPop}
         onClose={() => setShowAddCustomerModal(false)}
         onCreated={(created) => {
-          setSuccessMsg(
-            `Site pelanggan '${created.name}' (${created.siteCode}) berhasil ditambahkan di bawah ${selectedPop?.name || 'POP'}.`
-          );
+          const msg = `Site pelanggan '${created.name}' (${created.siteCode}) berhasil ditambahkan di bawah ${selectedPop?.name || 'POP'}.`;
+          setSuccessMsg(msg);
+          toast.success(msg);
           setActiveTabLevel2('customers');
           if (selectedPop) {
             fetchCustomers(selectedPop.id);
@@ -1082,4 +1172,4 @@ export function DeviceHierarchyView({
       </div>
     );
   }
-}
+});

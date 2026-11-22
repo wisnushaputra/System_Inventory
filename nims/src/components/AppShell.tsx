@@ -4,11 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from './ThemeProvider';
+import { GlobalSearchPalette } from './GlobalSearchPalette';
 import {
-  NimsBrandMark,
+  PassnetBrandMark,
+  PassnetWordmark,
   IconDashboard,
   IconServer,
+  IconSubnetGlobe,
   IconTopology,
+  IconGeoMap,
   IconDatabase,
   IconUsers,
   IconAudit,
@@ -16,6 +20,7 @@ import {
   IconClose,
   IconPanelCollapse,
   IconLogout,
+  IconSearch,
 } from './Icons';
 
 interface Props {
@@ -23,6 +28,7 @@ interface Props {
     name: string;
     roleName: string;
   };
+  canViewIpam?: boolean;
   canViewAudit: boolean;
   canManageUsers: boolean;
   children: React.ReactNode;
@@ -41,16 +47,37 @@ const ROUTE_TITLES: { prefix: string; title: string }[] = [
   { prefix: '/devices/import', title: 'Impor Inventaris CSV' },
   { prefix: '/devices/new', title: 'Pendaftaran Perangkat' },
   { prefix: '/devices', title: 'Inventaris Perangkat' },
+  { prefix: '/ipam', title: 'Manajemen IPAM & Subnet' },
   { prefix: '/topology', title: 'Topologi Relasi Jaringan' },
+  { prefix: '/map', title: 'Peta Koordinat Lokasi' },
   { prefix: '/master', title: 'Master Data Infrastruktur' },
   { prefix: '/users', title: 'Manajemen Pengguna' },
   { prefix: '/audit-logs', title: 'Jejak Audit Sistem' },
+  { prefix: '/profile', title: 'Profil & Keamanan Akun' },
 ];
 
-export function AppShell({ user, canViewAudit, canManageUsers, children }: Props) {
+export function AppShell({
+  user,
+  canViewIpam = true,
+  canViewAudit,
+  canManageUsers,
+  children,
+}: Props) {
   const pathname = usePathname() || '/dashboard';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onGlobalKeyDown);
+    return () => window.removeEventListener('keydown', onGlobalKeyDown);
+  }, []);
 
   useEffect(() => {
     try {
@@ -106,10 +133,24 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
       visible: true,
     },
     {
+      href: '/ipam',
+      label: 'IPAM & Subnet',
+      group: 'operational',
+      icon: (p) => <IconSubnetGlobe {...p} />,
+      visible: canViewIpam,
+    },
+    {
       href: '/topology',
       label: 'Topologi',
       group: 'operational',
       icon: (p) => <IconTopology {...p} />,
+      visible: true,
+    },
+    {
+      href: '/map',
+      label: 'Peta Lokasi',
+      group: 'operational',
+      icon: (p) => <IconGeoMap {...p} />,
       visible: true,
     },
     {
@@ -139,7 +180,7 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
     pathname === href || pathname.startsWith(`${href}/`);
 
   const currentTitle =
-    ROUTE_TITLES.find((r) => pathname.startsWith(r.prefix))?.title || 'NIMS Portal';
+    ROUTE_TITLES.find((r) => pathname.startsWith(r.prefix))?.title || 'Passnet Inventory Sistem';
 
   const initials = user.name
     .split(' ')
@@ -239,10 +280,12 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
 
       {/* User Footer inside Sidebar */}
       <div className="border-t border-line pt-4 space-y-2">
-        <div
-          className={`flex items-center gap-3 rounded-lg border border-line bg-subtle/60 p-2.5 ${
-            isCollapsed ? 'justify-center px-1.5' : ''
-          }`}
+        <Link
+          href="/profile"
+          title={isCollapsed ? `${user.name} (Buka profil & keamanan)` : 'Buka profil & ganti kata sandi'}
+          className={`flex items-center gap-3 rounded-lg border border-line bg-subtle/60 p-2.5 transition-[background-color,border-color] duration-150 hover:border-accent/40 hover:bg-subtle ${
+            pathname === '/profile' ? 'border-accent/50 bg-accent-soft/60' : ''
+          } ${isCollapsed ? 'justify-center px-1.5' : ''}`}
         >
           <span
             aria-hidden="true"
@@ -253,10 +296,12 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold text-ink">{user.name}</p>
-              <p className="truncate text-[11px] text-ink-secondary">{user.roleName}</p>
+              <p className="truncate text-[11px] text-ink-secondary">
+                {user.roleName} · Profil
+              </p>
             </div>
           )}
-        </div>
+        </Link>
 
         <form action="/api/auth/logout" method="post">
           <button
@@ -298,14 +343,21 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
         >
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5 text-ink hover:opacity-90 transition-opacity"
+            aria-label="Passnet Inventory Sistem"
+            className="flex min-w-0 items-center gap-2 text-ink hover:opacity-90 transition-opacity"
           >
-            <NimsBrandMark className="h-7 w-7 shrink-0" />
-            {!collapsed && (
-              <div className="leading-tight">
-                <span className="block text-sm font-bold tracking-tight text-ink">NIMS</span>
-                <span className="block text-[10px] font-mono text-ink-muted">Inventory Ops</span>
-              </div>
+            {collapsed ? (
+              <PassnetBrandMark className="h-8 w-8 shrink-0" />
+            ) : (
+              <>
+                <span className="inline-flex shrink-0 items-center rounded-md bg-white px-1.5 py-0.5 shadow-2xs ring-1 ring-slate-200/70">
+                  <PassnetWordmark className="h-6 w-auto" alt="Passnet" />
+                </span>
+                <span className="min-w-0 text-[11px] font-semibold leading-tight text-ink-secondary">
+                  Inventory
+                  <span className="block text-[10px] font-medium text-ink-muted">Sistem</span>
+                </span>
+              </>
             )}
           </Link>
 
@@ -355,13 +407,16 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
               <Link
                 href="/dashboard"
                 onClick={closeMobile}
-                className="flex items-center gap-2.5 text-ink"
+                aria-label="Passnet Inventory Sistem"
+                className="flex min-w-0 items-center gap-2 text-ink"
               >
-                <NimsBrandMark className="h-7 w-7" />
-                <div className="leading-tight">
-                  <span className="block text-sm font-bold tracking-tight">NIMS</span>
-                  <span className="block text-[10px] font-mono text-ink-muted">Inventory Ops</span>
-                </div>
+                <span className="inline-flex shrink-0 items-center rounded-md bg-white px-1.5 py-0.5 shadow-2xs ring-1 ring-slate-200/70">
+                  <PassnetWordmark className="h-6 w-auto" alt="Passnet" />
+                </span>
+                <span className="text-[11px] font-semibold leading-tight text-ink-secondary">
+                  Inventory
+                  <span className="block text-[10px] font-medium text-ink-muted">Sistem</span>
+                </span>
               </Link>
               <button
                 type="button"
@@ -393,10 +448,12 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
 
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 lg:hidden"
+              className="flex min-w-0 items-center gap-2 lg:hidden"
             >
-              <NimsBrandMark className="h-6 w-6 shrink-0" />
-              <span className="text-sm font-bold tracking-tight text-ink">NIMS</span>
+              <PassnetBrandMark className="h-7 w-7 shrink-0" />
+              <span className="truncate text-xs sm:text-sm font-bold tracking-tight text-ink">
+                Passnet Inventory Sistem
+              </span>
             </Link>
 
             <div className="hidden lg:flex lg:items-center lg:gap-2">
@@ -406,6 +463,21 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Cari cepat (Ctrl+K)"
+              className="inline-flex min-h-[40px] items-center justify-center sm:justify-between gap-2 rounded-lg border border-line bg-canvas px-2.5 sm:px-3 sm:w-56 md:w-64 text-xs text-ink-muted transition-[border-color,background-color,color] duration-150 hover:border-line-strong hover:bg-subtle hover:text-ink"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <IconSearch className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline truncate">Cari IP, perangkat, site...</span>
+              </span>
+              <kbd className="hidden md:inline-flex items-center rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-secondary">
+                Ctrl K
+              </kbd>
+            </button>
+
             <div className="hidden sm:block text-right">
               <p className="text-xs font-semibold text-ink leading-tight">{user.name}</p>
               <p className="text-[11px] text-ink-secondary leading-tight">{user.roleName}</p>
@@ -413,6 +485,15 @@ export function AppShell({ user, canViewAudit, canManageUsers, children }: Props
             <ThemeToggle compact />
           </div>
         </header>
+
+        {searchOpen && (
+          <GlobalSearchPalette
+            onClose={() => setSearchOpen(false)}
+            canViewIpam={canViewIpam}
+            canViewAudit={canViewAudit}
+            canManageUsers={canManageUsers}
+          />
+        )}
 
         <main
           id="main-content"

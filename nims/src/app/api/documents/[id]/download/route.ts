@@ -1,8 +1,18 @@
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiPermission, getCurrentUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { readDocumentFile } from '@/lib/document-storage';
+
+const INLINE_IMAGE_EXTS = new Map<string, string>([
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.webp', 'image/webp'],
+]);
+
+const INLINE_TEXT_EXTS = new Set(['.txt', '.log', '.cfg', '.conf', '.csv']);
 
 export async function GET(
   req: Request,
@@ -41,8 +51,27 @@ export async function GET(
 
   try {
     const fileBuffer = await readDocumentFile(document.storageKey);
+    const { searchParams } = new URL(req.url);
+    const wantsInline = searchParams.get('inline') === '1' || searchParams.get('inline') === 'true';
+    const ext = path.extname(document.originalFilename).toLowerCase();
 
-    // Audit log pengunduhan dokumen (DoD T5.3)
+    let disposition: 'inline' | 'attachment' = 'attachment';
+    let responseContentType = document.mimeType || 'application/octet-stream';
+
+    if (wantsInline) {
+      if (ext === '.pdf') {
+        disposition = 'inline';
+        responseContentType = 'application/pdf';
+      } else if (INLINE_IMAGE_EXTS.has(ext)) {
+        disposition = 'inline';
+        responseContentType = INLINE_IMAGE_EXTS.get(ext)!;
+      } else if (INLINE_TEXT_EXTS.has(ext)) {
+        disposition = 'inline';
+        responseContentType = 'text/plain; charset=utf-8';
+      }
+    }
+
+    // Audit log pengunduhan/pratinjau dokumen (DoD T5.3)
     await logAudit({
       userId: user.id,
       action: 'DOWNLOAD_DOCUMENT',
@@ -53,6 +82,7 @@ export async function GET(
         fileSize: document.fileSize,
         checksum: document.checksum,
         deviceId: document.deviceId,
+        preview: disposition === 'inline',
       },
       req,
     });
@@ -63,15 +93,15 @@ export async function GET(
     return new Response(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
-        // DoD T5.2: Content-Disposition: attachment + X-Content-Type-Options: nosniff
-        'Content-Type': document.mimeType || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`,
+        // DoD T5.2: X-Content-Type-Options: nosniff + inline hanya untuk tipe aman (image/pdf/text)
+        'Content-Type': responseContentType,
+        'Content-Disposition': `${disposition}; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`,
         'X-Content-Type-Options': 'nosniff',
         'Content-Length': document.fileSize.toString(),
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Gagal membaca berkas ${document.storageKey}:`, error);
     return NextResponse.json(
       { error: 'Berkas fisik dokumen tidak ditemukan di media penyimpanan privat.' },

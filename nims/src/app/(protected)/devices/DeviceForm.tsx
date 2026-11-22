@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { IconCopy } from '@/components/Icons';
+import { useFeedback } from '@/components/FeedbackProvider';
 
 interface Option {
   id: number;
@@ -48,8 +50,16 @@ interface DeviceInitialData {
   version?: number;
 }
 
+interface CloneSourceInfo {
+  id: number;
+  deviceCode: string;
+  hostname: string;
+  interfaces: { name: string; interfaceType: string }[];
+}
+
 interface Props {
   initialData?: DeviceInitialData;
+  cloneSource?: CloneSourceInfo;
   categories: Option[];
   vendors: Option[];
   models: ModelOption[];
@@ -61,6 +71,7 @@ interface Props {
 
 export function DeviceForm({
   initialData,
+  cloneSource,
   categories,
   vendors,
   models,
@@ -70,6 +81,7 @@ export function DeviceForm({
   isEdit = false,
 }: Props) {
   const router = useRouter();
+  const { toast } = useFeedback();
   const [formData, setFormData] = useState({
     deviceCode: initialData?.deviceCode || '',
     hostname: initialData?.hostname || '',
@@ -89,6 +101,9 @@ export function DeviceForm({
     ownerTeam: initialData?.ownerTeam || '',
   });
 
+  const [clonePorts, setClonePorts] = useState(
+    Boolean(cloneSource && cloneSource.interfaces.length > 0)
+  );
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -133,6 +148,9 @@ export function DeviceForm({
       if (formData.ownerTeam) payload.ownerTeam = formData.ownerTeam.trim();
       if (formData.installedAt) payload.installedAt = new Date(formData.installedAt).toISOString();
       if (formData.warrantyExpiry) payload.warrantyExpiry = new Date(formData.warrantyExpiry).toISOString();
+      if (!isEdit && cloneSource && clonePorts) {
+        payload.clonePortsFromDeviceId = cloneSource.id;
+      }
       if (isEdit && initialData?.version) payload.version = initialData.version;
 
       const url = isEdit ? `/api/devices/${initialData?.id}` : '/api/devices';
@@ -152,6 +170,7 @@ export function DeviceForm({
         throw new Error(data.message || 'Terjadi kesalahan saat menyimpan perangkat');
       }
 
+      toast.success(data.message || 'Perangkat berhasil disimpan.');
       router.push(`/devices/${data.data.id}`);
       router.refresh();
     } catch (err: any) {
@@ -163,6 +182,58 @@ export function DeviceForm({
 
   return (
     <form onSubmit={handleSubmit} className="animate-enter max-w-4xl space-y-6">
+      {cloneSource && (
+        <div className="rounded-xl border border-accent/40 bg-accent-soft/50 p-4 space-y-2.5 text-xs">
+          <div className="flex items-start gap-2.5">
+            <IconCopy className="h-4 w-4 shrink-0 mt-0.5 text-accent-ink" />
+            <div>
+              <p className="font-bold text-accent-ink">
+                Mode Duplikat dari {cloneSource.hostname} ({cloneSource.deviceCode})
+              </p>
+              <p className="mt-0.5 text-ink-secondary">
+                Kategori, vendor, model, lokasi, dan catatan disalin otomatis. Silakan isi{' '}
+                <strong className="text-ink">Kode Perangkat</strong>,{' '}
+                <strong className="text-ink">Hostname</strong>, dan{' '}
+                <strong className="text-ink">Serial Number</strong> unit baru secara unik (IP &amp; relasi koneksi tidak disalin).
+              </p>
+            </div>
+          </div>
+
+          {cloneSource.interfaces.length > 0 && (
+            <div className="border-t border-line/70 pt-2.5 space-y-2">
+              <label className="inline-flex items-center gap-2 font-semibold text-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={clonePorts}
+                  onChange={(e) => setClonePorts(e.target.checked)}
+                  className="h-4 w-4 rounded border-line accent-[var(--accent)]"
+                />
+                <span>
+                  Salin struktur {cloneSource.interfaces.length} port / interface (tanpa MAC address &amp; IP)
+                </span>
+              </label>
+              {clonePorts && (
+                <div className="flex flex-wrap gap-1.5">
+                  {cloneSource.interfaces.slice(0, 12).map((iface) => (
+                    <span
+                      key={iface.name}
+                      className="rounded border border-line bg-surface px-2 py-0.5 font-mono text-[11px] text-ink-secondary"
+                    >
+                      {iface.name}
+                    </span>
+                  ))}
+                  {cloneSource.interfaces.length > 12 && (
+                    <span className="rounded border border-line bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+                      +{cloneSource.interfaces.length - 12} port lainnya
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {generalError && (
         <div
           role="alert"

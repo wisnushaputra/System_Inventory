@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import DeviceImportClient from './DeviceImportClient';
 
 export const metadata: Metadata = {
-  title: 'Impor Perangkat CSV | NIMS',
+  title: 'Impor Perangkat CSV',
   description: 'Impor data massal perangkat jaringan menggunakan berkas CSV',
 };
 

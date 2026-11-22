@@ -12,9 +12,18 @@ import {
   IconCheckCircle,
   IconLinkCable,
   IconEdit,
+  IconQrCode,
+  IconExternalLink,
+  IconCopy,
+  IconEye,
 } from '@/components/Icons';
 import { parsePointToPointHost } from '@/lib/ipam';
+import { buildGoogleMapsUrl, formatCoordinates } from '@/lib/geo';
+import type { AuditFieldChange } from '@/lib/device-audit-diff';
 import { RoomRackManagerModal } from '@/components/RoomRackManagerModal';
+import { QrLabelModal } from '@/components/QrLabelModal';
+import { DocumentPreviewModal, getDocumentPreviewKind } from '@/components/DocumentPreviewModal';
+import { useFeedback } from '@/components/FeedbackProvider';
 
 interface AuditItem {
   id: number;
@@ -23,6 +32,7 @@ interface AuditItem {
   user: { name: string; username: string } | null;
   beforeData: any;
   afterData: any;
+  changes?: AuditFieldChange[];
 }
 
 interface SubnetRef {
@@ -152,6 +162,8 @@ interface DeviceDetailProps {
       parentSite?: { id: number; siteCode: string; name: string } | null;
       address: string | null;
       city: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     };
     room: { id: number; name: string; floor: string | null } | null;
     rack: { id: number; name: string; unitCapacity: number } | null;
@@ -163,12 +175,14 @@ interface DeviceDetailProps {
     documents?: DocumentItem[];
   };
   history: AuditItem[];
+  canCreate?: boolean;
   canEdit: boolean;
   canUpdateDevice?: boolean;
   canArchive: boolean;
   canUploadDoc?: boolean;
   canManageIp?: boolean;
   canManageSites?: boolean;
+  initialTab?: 'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history';
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -176,12 +190,48 @@ const STATUS_COLOR: Record<string, string> = {
   disabled: 'bg-subtle text-ink-muted',
   up: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
   down: 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300',
+  testing: 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300',
   unknown: 'bg-subtle text-ink-muted',
   ALLOCATED: 'bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-300',
   RELEASED: 'bg-subtle text-ink-muted',
   RESERVED: 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300',
   AVAILABLE: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300',
 };
+
+const INTERFACE_TYPE_OPTIONS = [
+  { value: 'ethernet', label: 'Ethernet' },
+  { value: 'sfp', label: 'SFP' },
+  { value: 'sfp_plus', label: 'SFP+' },
+  { value: 'qsfp', label: 'QSFP' },
+  { value: 'pon', label: 'PON / GPON' },
+  { value: 'wireless', label: 'Wireless' },
+  { value: 'loopback', label: 'Loopback' },
+  { value: 'vlan', label: 'VLAN Interface' },
+  { value: 'lag', label: 'LAG / Bonding' },
+  { value: 'management', label: 'Management' },
+  { value: 'other', label: 'Lainnya' },
+] as const;
+
+const MEDIA_TYPE_OPTIONS = [
+  { value: 'copper', label: 'Copper (UTP / RJ45)' },
+  { value: 'fiber_single_mode', label: 'Fiber Single Mode' },
+  { value: 'fiber_multi_mode', label: 'Fiber Multi Mode' },
+  { value: 'wireless', label: 'Wireless' },
+] as const;
+
+const PORT_SPEED_OPTIONS = [10, 100, 1000, 2500, 10000, 25000, 40000, 100000] as const;
+
+const INTERFACE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  INTERFACE_TYPE_OPTIONS.map((o) => [o.value, o.label])
+);
+
+const MEDIA_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  MEDIA_TYPE_OPTIONS.map((o) => [o.value, o.label])
+);
+
+function formatSpeedLabel(mbps: number) {
+  return mbps >= 1000 ? `${mbps / 1000} Gbps` : `${mbps} Mbps`;
+}
 
 const DOC_CATEGORY_MAP: Record<string, string> = {
   photo: 'Foto Perangkat',
@@ -205,22 +255,43 @@ function formatBytes(bytes: number, decimals = 1) {
 export function DeviceDetailClient({
   device,
   history,
+  canCreate = false,
   canEdit,
   canUpdateDevice = false,
   canArchive,
   canUploadDoc = false,
   canManageIp = false,
   canManageSites = false,
+  initialTab = 'overview',
 }: DeviceDetailProps) {
+  const { toast, confirm: confirmDialog } = useFeedback();
   const [activeTab, setActiveTab] = useState<
     'overview' | 'network' | 'ports' | 'connections' | 'documents' | 'history'
-  >('overview');
+  >(initialTab);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
   const [loadingArchive, setLoadingArchive] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
 
   const [interfaces, setInterfaces] = useState<InterfaceItem[]>(device.interfaces || []);
   const [portsLoading, setPortsLoading] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [editingPort, setEditingPort] = useState<InterfaceItem | null>(null);
+  const [portName, setPortName] = useState('');
+  const [portLabel, setPortLabel] = useState('');
+  const [portType, setPortType] = useState('ethernet');
+  const [portMedia, setPortMedia] = useState('');
+  const [portSpeed, setPortSpeed] = useState('1000');
+  const [portAdminStatus, setPortAdminStatus] = useState('enabled');
+  const [portOperStatus, setPortOperStatus] = useState('unknown');
+  const [portMode, setPortMode] = useState('');
+  const [portVlanId, setPortVlanId] = useState('');
+  const [portMacAddress, setPortMacAddress] = useState('');
+  const [portDescription, setPortDescription] = useState('');
+  const [portSubmitting, setPortSubmitting] = useState(false);
+  const [portError, setPortError] = useState<string | null>(null);
+  const [portSuccessMsg, setPortSuccessMsg] = useState<string | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchPrefix, setBatchPrefix] = useState('ether');
   const [batchStart, setBatchStart] = useState(1);
@@ -302,6 +373,7 @@ export function DeviceDetailClient({
   useEffect(() => {
     const anyModal =
       showArchiveModal ||
+      showPortModal ||
       showBatchModal ||
       showConnModal ||
       Boolean(archiveConnTarget) ||
@@ -313,6 +385,7 @@ export function DeviceDetailClient({
       if (e.key === 'Escape') {
         if (showRoomRackManager) return;
         setShowArchiveModal(false);
+        if (!portSubmitting) setShowPortModal(false);
         setShowBatchModal(false);
         setShowConnModal(false);
         setArchiveConnTarget(null);
@@ -325,6 +398,8 @@ export function DeviceDetailClient({
     return () => window.removeEventListener('keydown', onKey);
   }, [
     showArchiveModal,
+    showPortModal,
+    portSubmitting,
     showBatchModal,
     showConnModal,
     archiveConnTarget,
@@ -429,6 +504,7 @@ export function DeviceDetailClient({
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadDescription('');
+      toast.success('Dokumen perangkat berhasil diunggah.');
       refreshDocuments();
     } catch (err: any) {
       setUploadError(err.message || 'Terjadi kesalahan sistem saat unggah.');
@@ -438,15 +514,22 @@ export function DeviceDetailClient({
   };
 
   const handleDeleteDocument = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus dokumen ini secara permanen dari server?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Hapus Dokumen Perangkat?',
+      message: 'Dokumen ini akan dihapus secara permanen dari server penyimpanan.',
+      confirmLabel: 'Hapus Dokumen',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setDocDeletingId(id);
     try {
       const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        toast.success('Dokumen berhasil dihapus.');
         refreshDocuments();
       } else {
         const data = await res.json();
-        alert(data.error || 'Gagal menghapus dokumen.');
+        toast.error(data.error || 'Gagal menghapus dokumen.');
       }
     } finally {
       setDocDeletingId(null);
@@ -464,7 +547,7 @@ export function DeviceDetailClient({
   const handleCreateConnection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!connLocalIfaceId || !connRemoteIfaceId) {
-      alert('Pilih port sumber dan port tujuan');
+      toast.warning('Pilih port sumber dan port tujuan terlebih dahulu.');
       return;
     }
     setConnSubmitting(true);
@@ -484,12 +567,13 @@ export function DeviceDetailClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.message || 'Gagal membuat koneksi');
+        toast.error(data.message || 'Gagal membuat koneksi');
         return;
       }
       setShowConnModal(false);
       setConnLabel('');
       setConnDesc('');
+      toast.success(data.message || 'Relasi koneksi antarperangkat berhasil disimpan.');
       await refreshConnections();
     } finally {
       setConnSubmitting(false);
@@ -508,11 +592,12 @@ export function DeviceDetailClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.message);
+        toast.error(data.message || 'Gagal mengarsipkan koneksi.');
         return;
       }
       setArchiveConnTarget(null);
       setArchiveConnReason('');
+      toast.success(data.message || 'Relasi koneksi berhasil diarsipkan.');
       await refreshConnections();
     } finally {
       setArchiveConnLoading(false);
@@ -520,43 +605,169 @@ export function DeviceDetailClient({
   };
 
   const handleRestoreConnection = async (connId: number) => {
-    if (!confirm('Pulihkan relasi koneksi ini dari arsip?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Pulihkan Relasi Koneksi?',
+      message: 'Relasi koneksi ini akan diaktifkan kembali pada daftar dan diagram topologi.',
+      confirmLabel: 'Pulihkan Koneksi',
+      tone: 'primary',
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/connections/${connId}/restore`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.message);
+      toast.error(data.message || 'Gagal memulihkan koneksi.');
       return;
     }
+    toast.success(data.message || 'Relasi koneksi berhasil dipulihkan.');
     await refreshConnections();
   };
 
   const handleDeleteConnection = async (connId: number) => {
-    if (!confirm('Hapus relasi koneksi ini secara permanen?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Hapus Relasi Koneksi?',
+      message: 'Relasi koneksi antarport ini akan dihapus secara permanen dari sistem.',
+      confirmLabel: 'Hapus Koneksi',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/connections/${connId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.message);
+      toast.error(data.message || 'Gagal menghapus koneksi.');
       return;
     }
+    toast.success(data.message || 'Relasi koneksi berhasil dihapus.');
     await refreshConnections();
   };
 
   const handleDeleteInterface = async (iface: InterfaceItem) => {
-    if (
-      !confirm(
-        `Hapus port "${iface.name}"? IP address yang terhubung akan dilepas dari port ini.`
-      )
-    )
-      return;
+    const confirmed = await confirmDialog({
+      title: `Hapus Port "${iface.name}"?`,
+      message: `Port "${iface.name}" akan dihapus dan IP address yang terhubung akan dilepas dari port ini.`,
+      confirmLabel: 'Hapus Port',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/devices/${device.id}/interfaces/${iface.id}`, {
       method: 'DELETE',
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.message);
+      toast.error(data.message || 'Gagal menghapus port.');
       return;
     }
+    toast.success(data.message || `Port '${iface.name}' berhasil dihapus.`);
     await refreshInterfaces();
+  };
+
+  const openCreatePortModal = () => {
+    setEditingPort(null);
+    setPortName('');
+    setPortLabel('');
+    setPortType('ethernet');
+    setPortMedia('');
+    setPortSpeed('1000');
+    setPortAdminStatus('enabled');
+    setPortOperStatus('unknown');
+    setPortMode('');
+    setPortVlanId('');
+    setPortMacAddress('');
+    setPortDescription('');
+    setPortError(null);
+    setShowPortModal(true);
+  };
+
+  const openEditPortModal = (iface: InterfaceItem) => {
+    setEditingPort(iface);
+    setPortName(iface.name);
+    setPortLabel(iface.label || '');
+    setPortType(iface.interfaceType || 'ethernet');
+    setPortMedia(iface.mediaType || '');
+    setPortSpeed(iface.speedMbps ? iface.speedMbps.toString() : '');
+    setPortAdminStatus(iface.adminStatus || 'enabled');
+    setPortOperStatus(iface.operStatus || 'unknown');
+    setPortMode(iface.portMode || '');
+    setPortVlanId(iface.vlanId ? iface.vlanId.toString() : '');
+    setPortMacAddress(iface.macAddress || '');
+    setPortDescription(iface.description || '');
+    setPortError(null);
+    setShowPortModal(true);
+  };
+
+  const handleSavePort = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = portName.trim();
+    if (!trimmedName) {
+      setPortError('Nama port wajib diisi.');
+      return;
+    }
+
+    let parsedVlan: number | null = null;
+    if (portVlanId.trim()) {
+      const n = Number(portVlanId.trim());
+      if (!Number.isInteger(n) || n < 1 || n > 4094) {
+        setPortError('VLAN ID harus berupa bilangan bulat antara 1 sampai 4094.');
+        return;
+      }
+      parsedVlan = n;
+    }
+
+    let parsedSpeed: number | null = null;
+    if (portSpeed.trim()) {
+      const s = Number(portSpeed.trim());
+      if (!Number.isInteger(s) || s <= 0) {
+        setPortError('Kecepatan port tidak valid.');
+        return;
+      }
+      parsedSpeed = s;
+    }
+
+    setPortSubmitting(true);
+    setPortError(null);
+
+    try {
+      const payload = {
+        name: trimmedName,
+        label: portLabel.trim() || null,
+        interfaceType: portType,
+        mediaType: portMedia || null,
+        speedMbps: parsedSpeed,
+        adminStatus: portAdminStatus,
+        operStatus: portOperStatus,
+        portMode: portMode || null,
+        vlanId: parsedVlan,
+        macAddress: portMacAddress.trim() || null,
+        description: portDescription.trim() || null,
+      };
+
+      const url = editingPort
+        ? `/api/devices/${device.id}/interfaces/${editingPort.id}`
+        : `/api/devices/${device.id}/interfaces`;
+
+      const res = await fetch(url, {
+        method: editingPort ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || 'Gagal menyimpan data port.');
+      }
+
+      setShowPortModal(false);
+      const portMsg =
+        json.message ||
+        (editingPort
+          ? `Port '${trimmedName}' berhasil diperbarui.`
+          : `Port '${trimmedName}' berhasil ditambahkan.`);
+      setPortSuccessMsg(portMsg);
+      toast.success(portMsg);
+      await refreshInterfaces();
+    } catch (err: unknown) {
+      setPortError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan port.');
+    } finally {
+      setPortSubmitting(false);
+    }
   };
 
   const handleBatchCreate = async (e: React.FormEvent) => {
@@ -577,10 +788,13 @@ export function DeviceDetailClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.message);
+        toast.error(data.message || 'Gagal menambahkan batch port.');
         return;
       }
       setShowBatchModal(false);
+      const batchMsg = data.message || `Berhasil menambahkan ${batchCount} port berpola.`;
+      setPortSuccessMsg(batchMsg);
+      toast.success(batchMsg);
       await refreshInterfaces();
     } finally {
       setBatchSubmitting(false);
@@ -639,7 +853,9 @@ export function DeviceDetailClient({
         setDeviceVersion(json.data.version);
       }
       setShowPlacementModal(false);
-      setPlacementSuccessMsg('Penempatan Ruang / Rak perangkat berhasil diperbarui.');
+      const placeMsg = 'Penempatan Ruang / Rak perangkat berhasil diperbarui.';
+      setPlacementSuccessMsg(placeMsg);
+      toast.success(placeMsg);
     } catch (err: unknown) {
       setPlacementError(
         err instanceof Error ? err.message : 'Gagal memperbarui Ruang / Rak perangkat.'
@@ -680,6 +896,7 @@ export function DeviceDetailClient({
       }
       setShowManualIpModal(false);
       setIpSuccessMsg(json.message);
+      toast.success(json.message || 'IP Point-to-Point berhasil ditambahkan.');
       await refreshIpAddresses();
     } catch (err: unknown) {
       setManualIpError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan IP.');
@@ -689,13 +906,20 @@ export function DeviceDetailClient({
   };
 
   const handleReleaseIp = async (ipId: number, address: string) => {
-    if (!confirm(`Lepas alokasi IP ${address}? Status akan berubah menjadi RELEASED.`)) return;
+    const confirmed = await confirmDialog({
+      title: `Lepas Alokasi IP ${address}?`,
+      message: `Status IP ${address} akan berubah menjadi RELEASED dan dilepas dari perangkat ini.`,
+      confirmLabel: 'Lepas IP',
+      tone: 'warning',
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/ipam/addresses/${ipId}/release`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.message);
+      toast.error(data.message || 'Gagal melepas alokasi IP.');
       return;
     }
+    toast.success(data.message || `Alokasi IP ${address} berhasil dilepas.`);
     await refreshIpAddresses();
   };
 
@@ -728,23 +952,31 @@ export function DeviceDetailClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal mengarsipkan perangkat');
+      toast.success(data.message || `Perangkat '${device.hostname}' berhasil diarsipkan.`);
       window.location.reload();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setLoadingArchive(false);
     }
   };
 
   const handleRestore = async () => {
-    if (!confirm('Pulihkan perangkat ini ke inventaris aktif?')) return;
+    const confirmed = await confirmDialog({
+      title: `Pulihkan Perangkat '${device.hostname}'?`,
+      message: 'Perangkat ini akan dikembalikan ke daftar inventaris aktif.',
+      confirmLabel: 'Pulihkan ke Aktif',
+      tone: 'primary',
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/devices/${device.id}/restore`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal memulihkan perangkat');
+      toast.success(data.message || `Perangkat '${device.hostname}' berhasil dipulihkan.`);
       window.location.reload();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -798,6 +1030,23 @@ export function DeviceDetailClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowQrModal(true)}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-ink hover:bg-subtle"
+          >
+            <IconQrCode className="h-4 w-4 text-accent-ink" />
+            <span>Label QR</span>
+          </button>
+          {canCreate && (
+            <Link
+              href={`/devices/new?cloneFrom=${device.id}`}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-ink hover:bg-subtle"
+            >
+              <IconCopy className="h-4 w-4 text-accent-ink" />
+              <span>Duplikat</span>
+            </Link>
+          )}
           {canEdit && (
             <Link
               href={`/devices/${device.id}/edit`}
@@ -918,6 +1167,29 @@ export function DeviceDetailClient({
                 <dt className="text-ink-muted">Site / Lokasi</dt>
                 <dd className="font-semibold text-ink">
                   {device.site.siteCode} - {device.site.name}
+                </dd>
+              </div>
+              <div className="py-2 flex justify-between gap-2">
+                <dt className="text-ink-muted">Koordinat GPS Site</dt>
+                <dd className="text-ink">
+                  {device.site.latitude != null && device.site.longitude != null ? (
+                    <span className="inline-flex items-center gap-2 font-mono">
+                      <span>{formatCoordinates(device.site.latitude, device.site.longitude)}</span>
+                      <a
+                        href={buildGoogleMapsUrl(device.site.latitude, device.site.longitude)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-sans font-semibold text-accent-ink hover:underline"
+                      >
+                        <span>Google Maps</span>
+                        <IconExternalLink className="h-3 w-3" />
+                      </a>
+                    </span>
+                  ) : (
+                    <Link href={`/map?siteId=${device.site.id}`} className="text-accent-ink hover:underline">
+                      Atur di Peta Lokasi
+                    </Link>
+                  )}
                 </dd>
               </div>
               <div className="py-2 flex justify-between gap-2">
@@ -1140,34 +1412,67 @@ export function DeviceDetailClient({
                 Daftar Interface & Port ({interfaces.length})
               </h2>
               <p className="text-ink-secondary mt-0.5">
-                Port fisik dan logis untuk perangkat {device.hostname}.
+                Kelola port fisik maupun logis, mode VLAN, dan status operasional untuk perangkat {device.hostname}.
               </p>
             </div>
             {canEdit && (
-              <button
-                type="button"
-                onClick={() => setShowBatchModal(true)}
-                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
-              >
-                <IconPlus className="h-3.5 w-3.5" />
-                <span>Batch Port</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openCreatePortModal}
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Tambah Port</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(true)}
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-line bg-canvas px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                  <span>Batch Port</span>
+                </button>
+              </div>
             )}
           </div>
+
+          {portSuccessMsg && (
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2.5 text-xs font-medium text-emerald-900 dark:text-emerald-200"
+            >
+              <IconCheckCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{portSuccessMsg}</span>
+            </div>
+          )}
 
           {portsLoading ? (
             <div className="text-center py-8 text-ink-secondary">Memuat daftar port...</div>
           ) : interfaces.length === 0 ? (
             <div className="rounded-lg border border-dashed border-line-strong p-8 text-center text-ink-secondary">
               <p className="font-medium text-ink">Belum ada port/interface yang terdaftar.</p>
+              <p className="text-[11px] mt-1">
+                Tambahkan 1 port spesifik (misal sfp-sfpplus1, lo0, vlan100) atau buat banyak port berpola sekaligus.
+              </p>
               {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setShowBatchModal(true)}
-                  className="mt-3 inline-flex min-h-[38px] items-center rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
-                >
-                  Tambah Port Berpola
-                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openCreatePortModal}
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
+                  >
+                    <IconPlus className="h-3.5 w-3.5" />
+                    <span>Tambah 1 Port</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBatchModal(true)}
+                    className="inline-flex min-h-[38px] items-center rounded-lg border border-line bg-canvas px-4 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
+                  >
+                    Tambah Port Berpola
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -1175,10 +1480,11 @@ export function DeviceDetailClient({
               <table className="min-w-full divide-y divide-line text-left">
                 <thead className="bg-subtle text-ink-secondary font-semibold text-[11px] uppercase">
                   <tr>
-                    <th className="px-3.5 py-2.5">Nama Port</th>
-                    <th className="px-3.5 py-2.5">Tipe</th>
+                    <th className="px-3.5 py-2.5">Port / Label</th>
+                    <th className="px-3.5 py-2.5">Tipe & Media</th>
                     <th className="px-3.5 py-2.5">Kecepatan</th>
-                    <th className="px-3.5 py-2.5">Admin Status</th>
+                    <th className="px-3.5 py-2.5">Mode & VLAN</th>
+                    <th className="px-3.5 py-2.5">Status (Admin / Oper)</th>
                     <th className="px-3.5 py-2.5">IP Address</th>
                     <th className="px-3.5 py-2.5">Deskripsi</th>
                     {canEdit && <th className="px-3.5 py-2.5 text-right">Tindakan</th>}
@@ -1187,27 +1493,71 @@ export function DeviceDetailClient({
                 <tbody className="divide-y divide-line">
                   {interfaces.map((iface) => (
                     <tr key={iface.id} className="hover:bg-subtle/60">
-                      <td className="px-3.5 py-2.5 font-mono font-bold text-ink">{iface.name}</td>
-                      <td className="px-3.5 py-2.5 uppercase text-ink-muted font-mono text-[11px]">
-                        {iface.interfaceType}
-                      </td>
-                      <td className="px-3.5 py-2.5 font-mono text-ink-secondary">
-                        {iface.speedMbps
-                          ? `${
-                              iface.speedMbps >= 1000
-                                ? `${iface.speedMbps / 1000}G`
-                                : `${iface.speedMbps}M`
-                            }`
-                          : '-'}
+                      <td className="px-3.5 py-2.5">
+                        <span className="font-mono font-bold text-ink block">{iface.name}</span>
+                        {iface.label && (
+                          <span className="text-[11px] text-ink-secondary block">{iface.label}</span>
+                        )}
+                        {iface.macAddress && (
+                          <span className="font-mono text-[10px] text-ink-muted block">
+                            {iface.macAddress}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
-                            STATUS_COLOR[iface.adminStatus] || 'bg-subtle text-ink-secondary'
-                          }`}
-                        >
-                          {iface.adminStatus}
+                        <span className="text-ink font-mono text-[11px] font-semibold block">
+                          {INTERFACE_TYPE_LABELS[iface.interfaceType] || iface.interfaceType}
                         </span>
+                        {iface.mediaType && (
+                          <span className="text-[10px] text-ink-muted block">
+                            {MEDIA_TYPE_LABELS[iface.mediaType] || iface.mediaType.replaceAll('_', ' ')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-mono text-ink-secondary whitespace-nowrap">
+                        {iface.speedMbps
+                          ? iface.speedMbps >= 1000
+                            ? `${iface.speedMbps / 1000}G`
+                            : `${iface.speedMbps}M`
+                          : '-'}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        {iface.portMode || iface.vlanId ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {iface.portMode && (
+                              <span className="inline-flex rounded-md border border-line bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-ink">
+                                {iface.portMode}
+                              </span>
+                            )}
+                            {iface.vlanId && (
+                              <span className="inline-flex rounded-md bg-accent-soft px-2 py-0.5 font-mono text-[10px] font-semibold text-accent-ink">
+                                VLAN {iface.vlanId}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-ink-muted">-</span>
+                        )}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            title="Admin Status"
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                              STATUS_COLOR[iface.adminStatus] || 'bg-subtle text-ink-secondary'
+                            }`}
+                          >
+                            {iface.adminStatus}
+                          </span>
+                          <span
+                            title="Oper Status"
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              STATUS_COLOR[iface.operStatus] || 'bg-subtle text-ink-secondary'
+                            }`}
+                          >
+                            {iface.operStatus}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-3.5 py-2.5 font-mono text-accent-ink">
                         {iface.ipAddresses.length > 0 ? (
@@ -1220,11 +1570,18 @@ export function DeviceDetailClient({
                           <span className="italic text-ink-muted">-</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-ink-secondary italic">
+                      <td className="px-3.5 py-2.5 text-ink-secondary italic max-w-[220px]">
                         {iface.description || '-'}
                       </td>
                       {canEdit && (
-                        <td className="px-3.5 py-2.5 text-right">
+                        <td className="px-3.5 py-2.5 text-right space-x-2.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => openEditPortModal(iface)}
+                            className="text-accent-ink hover:underline font-medium"
+                          >
+                            Edit
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteInterface(iface)}
@@ -1238,6 +1595,266 @@ export function DeviceDetailClient({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Single Port Create / Edit Modal */}
+          {showPortModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 animate-backdrop"
+              onClick={() => {
+                if (!portSubmitting) setShowPortModal(false);
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="port-form-title"
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-lg rounded-xl border border-line bg-elevated p-5 shadow-2xl animate-modal space-y-4 text-xs max-h-[92vh] overflow-y-auto"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                  <div>
+                    <h3 id="port-form-title" className="text-base font-bold text-ink">
+                      {editingPort ? `Edit Port: ${editingPort.name}` : 'Tambah 1 Port Manual'}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-ink-secondary">
+                      Atur nama port, tipe media, mode VLAN, serta status administratif dan operasional port.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={portSubmitting}
+                    onClick={() => setShowPortModal(false)}
+                    aria-label="Tutup dialog"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle hover:text-ink disabled:opacity-50"
+                  >
+                    <IconClose className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {portError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 p-3 text-xs text-rose-800 dark:text-rose-200"
+                  >
+                    <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{portError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSavePort} className="space-y-3.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="port-name" className="block font-semibold text-ink-secondary">
+                        Nama Port <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        id="port-name"
+                        type="text"
+                        required
+                        maxLength={50}
+                        placeholder="Contoh: sfp-sfpplus1"
+                        value={portName}
+                        onChange={(e) => setPortName(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 font-mono text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="port-label" className="block font-semibold text-ink-secondary">
+                        Label Port (Opsional)
+                      </label>
+                      <input
+                        id="port-label"
+                        type="text"
+                        maxLength={100}
+                        placeholder="Contoh: Uplink Core POP"
+                        value={portLabel}
+                        onChange={(e) => setPortLabel(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label htmlFor="port-type" className="block font-semibold text-ink-secondary">
+                        Tipe Interface <span className="text-rose-600">*</span>
+                      </label>
+                      <select
+                        id="port-type"
+                        value={portType}
+                        onChange={(e) => setPortType(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        {INTERFACE_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="port-media" className="block font-semibold text-ink-secondary">
+                        Media Transmisi
+                      </label>
+                      <select
+                        id="port-media"
+                        value={portMedia}
+                        onChange={(e) => setPortMedia(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        <option value="">Tidak ditentukan</option>
+                        {MEDIA_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="port-speed" className="block font-semibold text-ink-secondary">
+                        Kecepatan
+                      </label>
+                      <select
+                        id="port-speed"
+                        value={portSpeed}
+                        onChange={(e) => setPortSpeed(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        <option value="">Tidak ditentukan</option>
+                        {PORT_SPEED_OPTIONS.map((sp) => (
+                          <option key={sp} value={sp.toString()}>
+                            {formatSpeedLabel(sp)}
+                          </option>
+                        ))}
+                        {portSpeed &&
+                          !PORT_SPEED_OPTIONS.some((sp) => sp.toString() === portSpeed) && (
+                            <option value={portSpeed}>{formatSpeedLabel(Number(portSpeed))}</option>
+                          )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="port-admin" className="block font-semibold text-ink-secondary">
+                        Admin Status
+                      </label>
+                      <select
+                        id="port-admin"
+                        value={portAdminStatus}
+                        onChange={(e) => setPortAdminStatus(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        <option value="enabled">Enabled (Aktif)</option>
+                        <option value="disabled">Disabled (Shutdown)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="port-oper" className="block font-semibold text-ink-secondary">
+                        Status Operasional
+                      </label>
+                      <select
+                        id="port-oper"
+                        value={portOperStatus}
+                        onChange={(e) => setPortOperStatus(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        <option value="up">UP (Link Terhubung)</option>
+                        <option value="down">DOWN (Link Terputus)</option>
+                        <option value="testing">TESTING</option>
+                        <option value="unknown">UNKNOWN</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label htmlFor="port-mode" className="block font-semibold text-ink-secondary">
+                        Mode Port
+                      </label>
+                      <select
+                        id="port-mode"
+                        value={portMode}
+                        onChange={(e) => setPortMode(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      >
+                        <option value="">Tidak ditentukan</option>
+                        <option value="access">Access</option>
+                        <option value="trunk">Trunk</option>
+                        <option value="routed">Routed (Layer 3)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="port-vlan" className="block font-semibold text-ink-secondary">
+                        VLAN ID (1-4094)
+                      </label>
+                      <input
+                        id="port-vlan"
+                        type="number"
+                        min={1}
+                        max={4094}
+                        placeholder="Contoh: 100"
+                        value={portVlanId}
+                        onChange={(e) => setPortVlanId(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 font-mono text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="port-mac" className="block font-semibold text-ink-secondary">
+                        MAC Address
+                      </label>
+                      <input
+                        id="port-mac"
+                        type="text"
+                        maxLength={50}
+                        placeholder="AA:BB:CC:DD:EE:FF"
+                        value={portMacAddress}
+                        onChange={(e) => setPortMacAddress(e.target.value)}
+                        className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 font-mono text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="port-desc" className="block font-semibold text-ink-secondary">
+                      Deskripsi Port (Opsional)
+                    </label>
+                    <input
+                      id="port-desc"
+                      type="text"
+                      maxLength={500}
+                      placeholder="Contoh: Uplink trunk ke Switch Distribusi Lantai 2"
+                      value={portDescription}
+                      onChange={(e) => setPortDescription(e.target.value)}
+                      className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 border-t border-line pt-3">
+                    <button
+                      type="button"
+                      disabled={portSubmitting}
+                      onClick={() => setShowPortModal(false)}
+                      className="min-h-[38px] rounded-lg border border-line bg-surface px-4 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink disabled:opacity-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={portSubmitting}
+                      className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+                    >
+                      {portSubmitting
+                        ? 'Menyimpan...'
+                        : editingPort
+                        ? 'Simpan Perubahan'
+                        : 'Simpan Port'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
@@ -1912,6 +2529,16 @@ export function DeviceDetailClient({
                         </div>
                       </td>
                       <td className="py-2.5 px-3.5 text-right font-sans space-x-1.5 whitespace-nowrap">
+                        {getDocumentPreviewKind(doc.originalFilename, doc.mimeType) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="inline-flex items-center gap-1 rounded-md border border-line bg-canvas px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-subtle"
+                          >
+                            <IconEye className="h-3.5 w-3.5 text-accent-ink" />
+                            <span>Pratinjau</span>
+                          </button>
+                        )}
                         <a
                           href={`/api/documents/${doc.id}/download`}
                           target="_blank"
@@ -1954,32 +2581,96 @@ export function DeviceDetailClient({
             </p>
           ) : (
             <div className="space-y-3">
-              {history.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-lg border border-line p-3.5 bg-canvas space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-accent-ink uppercase tracking-wide">
-                      Aksi: {log.action}
-                    </span>
-                    <span className="text-[11px] font-mono text-ink-muted">
-                      {new Date(log.createdAt).toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                  <p className="text-ink-secondary">
-                    Oleh:{' '}
-                    <strong className="text-ink">
-                      {log.user ? `${log.user.name} (@${log.user.username})` : 'System'}
-                    </strong>
-                  </p>
-                  {log.action === 'ARCHIVE' && (
-                    <p className="text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 p-2 rounded border border-amber-200 dark:border-amber-900/60">
-                      Alasan Arsip: <em>{log.afterData?.archiveReason || '-'}</em>
+              {history.map((log) => {
+                const changes = log.changes || [];
+                const actionBadgeClass =
+                  log.action === 'CREATE'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70'
+                    : log.action === 'ARCHIVE'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70'
+                    : log.action === 'RESTORE'
+                    ? 'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/70'
+                    : 'bg-accent-soft text-accent-ink border-line';
+
+                return (
+                  <div
+                    key={log.id}
+                    className="rounded-lg border border-line p-3.5 bg-canvas space-y-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${actionBadgeClass}`}
+                        >
+                          Aksi: {log.action}
+                        </span>
+                        {changes.length > 0 && (
+                          <span className="text-[11px] text-ink-secondary">
+                            {log.action === 'CREATE'
+                              ? `Data awal (${changes.length} atribut)`
+                              : `Mengubah ${changes.length} field: ${changes
+                                  .map((c) => c.label)
+                                  .join(', ')}`}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-mono text-ink-muted">
+                        {new Date(log.createdAt).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+
+                    <p className="text-ink-secondary">
+                      Oleh:{' '}
+                      <strong className="text-ink">
+                        {log.user ? `${log.user.name} (@${log.user.username})` : 'System'}
+                      </strong>
                     </p>
-                  )}
-                </div>
-              ))}
+
+                    {log.action === 'ARCHIVE' && (
+                      <p className="text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 p-2 rounded border border-amber-200 dark:border-amber-900/60">
+                        Alasan Arsip: <em>{log.afterData?.archiveReason || '-'}</em>
+                      </p>
+                    )}
+
+                    {changes.length > 0 ? (
+                      <div className="overflow-x-auto rounded-md border border-line bg-surface">
+                        <table className="min-w-full divide-y divide-line text-[11px]">
+                          <thead className="bg-subtle text-ink-secondary font-semibold">
+                            <tr>
+                              <th className="px-3 py-1.5 text-left w-1/4">Field</th>
+                              {log.action !== 'CREATE' && (
+                                <th className="px-3 py-1.5 text-left">Sebelum</th>
+                              )}
+                              <th className="px-3 py-1.5 text-left">
+                                {log.action === 'CREATE' ? 'Nilai Awal' : 'Sesudah'}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-line">
+                            {changes.map((c) => (
+                              <tr key={c.field}>
+                                <td className="px-3 py-1.5 font-semibold text-ink">{c.label}</td>
+                                {log.action !== 'CREATE' && (
+                                  <td className="px-3 py-1.5 text-ink-muted line-through decoration-rose-400/70">
+                                    {c.before}
+                                  </td>
+                                )}
+                                <td className="px-3 py-1.5 font-medium text-ink">{c.after}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      log.action === 'UPDATE' && (
+                        <p className="text-[11px] italic text-ink-muted">
+                          Pembaruan metadata / sinkronisasi sistem tanpa perubahan nilai atribut utama.
+                        </p>
+                      )
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -2496,6 +3187,37 @@ export function DeviceDetailClient({
         site={{ id: device.site.id, siteCode: device.site.siteCode, name: device.site.name }}
         onClose={() => setShowRoomRackManager(false)}
         onChanged={loadSiteRoomsAndRacks}
+      />
+
+      {showQrModal && (
+        <QrLabelModal
+          devices={[
+            {
+              id: device.id,
+              deviceCode: device.deviceCode,
+              hostname: device.hostname,
+              serialNumber: device.serialNumber,
+              managementIp:
+                ipAddresses.find(
+                  (ip) => ip.purpose === 'management' && ip.allocationStatus === 'ALLOCATED'
+                )?.address ?? device.managementIp ?? null,
+              inventoryStatus: device.inventoryStatus,
+              siteCode: device.site.siteCode,
+              siteName: device.site.name,
+              roomName: currentRoom?.name ?? null,
+              rackName: currentRack?.name ?? null,
+              vendorName: device.vendor.name,
+              modelName: device.model?.modelName ?? null,
+            },
+          ]}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
+
+      <DocumentPreviewModal
+        document={previewDoc}
+        categoryLabel={previewDoc ? DOC_CATEGORY_MAP[previewDoc.category] || previewDoc.category : undefined}
+        onClose={() => setPreviewDoc(null)}
       />
     </div>
   );

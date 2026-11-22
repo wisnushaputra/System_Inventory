@@ -78,7 +78,7 @@ export async function GET(req: Request) {
       target: `pop-${pop.id}`,
       type: 'default',
       animated: true,
-      style: { stroke: '#0f766e', strokeWidth: 2 },
+      style: { stroke: '#1d4ed8', strokeWidth: 2 },
       data: {
         label: 'Backbone Link',
       },
@@ -365,7 +365,7 @@ export async function GET(req: Request) {
       type: 'default',
       animated: isFiber, // Garis bergerak untuk fiber optic
       style: {
-        stroke: isPhysical ? '#0f766e' : '#0284c7', // Teal untuk physical, Sky untuk logical
+        stroke: isPhysical ? '#1d4ed8' : '#0284c7', // Cobalt untuk physical, Sky untuk logical
         strokeWidth: 2,
         strokeDasharray: isPhysical ? undefined : '5,5', // Garis putus-putus untuk logical
       },

@@ -71,20 +71,20 @@ const STATUS_BADGES: Record<string, string> = {
 // 1. Simpul Pusat (NOC / Backbone Network)
 function RootCustomNode({ data }: any) {
   return (
-    <div className="rounded-xl border-2 border-[#0F6E6E] dark:border-[#2DD4BF] bg-[#0B3B3C] dark:bg-[#102A2C] text-white p-5 shadow-md w-80 text-center select-none">
-      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[#0F5253] mb-2.5">
+    <div className="rounded-xl border-2 border-[#1D4ED8] dark:border-[#60A5FA] bg-[#0F1E36] dark:bg-[#111E33] text-white p-5 shadow-md w-80 text-center select-none">
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[#162B4D] mb-2.5">
         <NimsBrandMark className="h-7 w-7" />
       </div>
       <h3 className="font-bold text-sm text-white tracking-wide">{data.title}</h3>
-      <p className="text-[11px] text-teal-100 mt-1 leading-snug">{data.subtitle}</p>
-      <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#082C2D] px-3 py-1 text-[11px] font-semibold text-teal-100 border border-teal-600/50">
-        <span className="h-2 w-2 rounded-full bg-teal-300" aria-hidden="true" />
+      <p className="text-[11px] text-slate-200 mt-1 leading-snug">{data.subtitle}</p>
+      <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#0B172B] px-3 py-1 text-[11px] font-semibold text-blue-100 border border-blue-600/50">
+        <span className="h-2 w-2 rounded-full bg-blue-300" aria-hidden="true" />
         <span className="font-mono tabular-nums-data">{data.popCount} Point of Presence</span>
       </div>
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-3 h-3 !bg-[#2DD4BF] !border-2 !border-[#0B3B3C]"
+        className="w-3 h-3 !bg-[#60A5FA] !border-2 !border-[#0F1E36]"
       />
     </div>
   );
@@ -848,19 +848,19 @@ export function TopologyClient({ categories, canManageSites = false }: Props) {
             variant={BackgroundVariant.Dots}
             gap={18}
             size={1}
-            color={isDark ? '#2d3a49' : '#c7d1ce'}
+            color={isDark ? '#263345' : '#cbd5e1'}
           />
           <Controls position="bottom-left" />
           <MiniMap
             position="bottom-right"
-            maskColor={isDark ? 'rgba(15, 20, 25, 0.72)' : 'rgba(245, 247, 246, 0.72)'}
+            maskColor={isDark ? 'rgba(12, 17, 24, 0.72)' : 'rgba(246, 248, 251, 0.72)'}
             nodeColor={(node: any) => {
-              if (node.type === 'rootNode') return '#0b3b3c';
+              if (node.type === 'rootNode') return '#0f1e36';
               if (node.type === 'popNode' || node.type === 'popParentNode') {
-                return isDark ? '#2dd4bf' : '#0f6e6e';
+                return isDark ? '#60a5fa' : '#1d4ed8';
               }
               if (node.type === 'siteNode') return '#0284c7';
-              return isDark ? '#34d399' : '#059669';
+              return isDark ? '#93c5fd' : '#3b82f6';
             }}
           />
 
@@ -888,7 +888,7 @@ export function TopologyClient({ categories, canManageSites = false }: Props) {
             )}
             <div className="pt-1.5 border-t border-line space-y-1">
               <div className="flex items-center gap-2">
-                <span className="w-4 h-0.5 bg-[#0f766e] dark:bg-[#2dd4bf] inline-block" />
+                <span className="w-4 h-0.5 bg-[#1d4ed8] dark:bg-[#60a5fa] inline-block" />
                 <span className="text-ink-secondary">Backbone / Kabel Fisik</span>
               </div>
               <div className="flex items-center gap-2">

@@ -1,9 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { IconPlus, IconAlertTriangle, IconCheckCircle, IconTrash, IconEdit } from '@/components/Icons';
+import {
+  IconPlus,
+  IconAlertTriangle,
+  IconCheckCircle,
+  IconTrash,
+  IconEdit,
+  IconGeoMap,
+  IconExternalLink,
+} from '@/components/Icons';
 import { RoomRackManagerModal, SiteRoomRackTarget } from '@/components/RoomRackManagerModal';
+import { CoordinateFields } from '@/components/CoordinateFields';
+import { useFeedback } from '@/components/FeedbackProvider';
+import { buildGoogleMapsUrl, formatCoordinates, parseGeoInputs } from '@/lib/geo';
 
 interface SiteItem {
   id: number;
@@ -12,6 +24,8 @@ interface SiteItem {
   siteType: string;
   city: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   status: string;
   parentSiteId: number | null;
   parentSite: { id: number; siteCode: string; name: string } | null;
@@ -52,6 +66,7 @@ interface Props {
   models: ModelItem[];
   canManageSites: boolean;
   canManageVendors: boolean;
+  initialTab?: 'sites' | 'vendors' | 'categories' | 'models';
 }
 
 export function MasterDataClient({
@@ -61,9 +76,11 @@ export function MasterDataClient({
   models,
   canManageSites,
   canManageVendors,
+  initialTab = 'sites',
 }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<'sites' | 'vendors' | 'categories' | 'models'>('sites');
+  const { toast, confirm: confirmDialog } = useFeedback();
+  const [tab, setTab] = useState<'sites' | 'vendors' | 'categories' | 'models'>(initialTab);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,10 +95,13 @@ export function MasterDataClient({
     parentSiteId: '',
     city: '',
     address: '',
+    latitude: '',
+    longitude: '',
     status: 'active',
   });
 
   const [showAddVendor, setShowAddVendor] = useState(false);
+  const [editingVendorId, setEditingVendorId] = useState<number | null>(null);
   const [vendorForm, setVendorForm] = useState({
     name: '',
     website: '',
@@ -90,11 +110,20 @@ export function MasterDataClient({
   });
 
   const [showAddModel, setShowAddModel] = useState(false);
+  const [editingModelId, setEditingModelId] = useState<number | null>(null);
   const [modelForm, setModelForm] = useState({
     modelName: '',
     modelCode: '',
     vendorId: '',
     categoryId: '',
+    description: '',
+  });
+
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [categoryForm, setCategoryForm] = useState({
+    code: '',
+    name: '',
     description: '',
   });
 
@@ -116,6 +145,8 @@ export function MasterDataClient({
       parentSiteId: '',
       city: '',
       address: '',
+      latitude: '',
+      longitude: '',
       status: 'active',
     });
   };
@@ -130,6 +161,9 @@ export function MasterDataClient({
       parentSiteId: site.parentSiteId ? site.parentSiteId.toString() : '',
       city: site.city || '',
       address: site.address || '',
+      latitude: site.latitude !== null && site.latitude !== undefined ? String(site.latitude) : '',
+      longitude:
+        site.longitude !== null && site.longitude !== undefined ? String(site.longitude) : '',
       status: site.status || 'active',
     });
     setShowAddSite(true);
@@ -138,6 +172,11 @@ export function MasterDataClient({
   const handleSubmitSite = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAlerts();
+    const geo = parseGeoInputs(siteForm.latitude, siteForm.longitude);
+    if (geo.error) {
+      setErrorMsg(geo.error);
+      return;
+    }
     setLoading(true);
     const isEdit = editingSiteId !== null;
     try {
@@ -153,6 +192,8 @@ export function MasterDataClient({
             : null,
         city: siteForm.city.trim() || null,
         address: siteForm.address.trim() || null,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
         status: siteForm.status,
       };
       const res = await fetch(
@@ -176,103 +217,257 @@ export function MasterDataClient({
     }
   };
 
+  const resetCategoryForm = () => {
+    setEditingCategoryId(null);
+    setCategoryForm({ code: '', name: '', description: '' });
+  };
+
+  const startEditCategory = (category: CategoryItem) => {
+    clearAlerts();
+    setEditingCategoryId(category.id);
+    setCategoryForm({
+      code: category.code,
+      name: category.name,
+      description: category.description || '',
+    });
+    setShowAddCategory(true);
+  };
+
+  const handleSubmitCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearAlerts();
+    setLoading(true);
+    const isEdit = editingCategoryId !== null;
+    try {
+      const payload = {
+        code: categoryForm.code.trim().toLowerCase(),
+        name: categoryForm.name.trim(),
+        description: categoryForm.description.trim() || null,
+      };
+      const res = await fetch(
+        isEdit ? `/api/master/categories/${editingCategoryId}` : '/api/master/categories',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal menyimpan kategori');
+      setSuccessMsg(data.message);
+      toast.success(data.message);
+      setShowAddCategory(false);
+      resetCategoryForm();
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan kategori';
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number, name: string) => {
+    const confirmed = await confirmDialog({
+      title: `Hapus Kategori '${name}'?`,
+      message: `Kategori '${name}' akan dihapus dari master data apabila belum digunakan oleh model atau perangkat.`,
+      confirmLabel: 'Hapus Kategori',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    clearAlerts();
+    try {
+      const res = await fetch(`/api/master/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal menghapus kategori');
+      setSuccessMsg(data.message);
+      toast.success(data.message);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus kategori';
+      setErrorMsg(msg);
+      toast.error(msg);
+    }
+  };
+
   const handleDeleteSite = async (id: number, name: string) => {
-    if (!confirm(`Hapus site '${name}'?`)) return;
+    const confirmed = await confirmDialog({
+      title: `Hapus Site '${name}'?`,
+      message: `Site '${name}' akan dihapus dari master data apabila tidak lagi menampung perangkat.`,
+      confirmLabel: 'Hapus Site',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     clearAlerts();
     try {
       const res = await fetch(`/api/master/sites/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal menghapus site');
       setSuccessMsg(data.message);
+      toast.success(data.message);
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message);
+      toast.error(err.message);
     }
   };
 
-  const handleCreateVendor = async (e: React.FormEvent) => {
+  const resetVendorForm = () => {
+    setEditingVendorId(null);
+    setVendorForm({ name: '', website: '', supportContact: '', notes: '' });
+  };
+
+  const startEditVendor = (vendor: VendorItem) => {
+    clearAlerts();
+    setEditingVendorId(vendor.id);
+    setVendorForm({
+      name: vendor.name,
+      website: vendor.website || '',
+      supportContact: vendor.supportContact || '',
+      notes: vendor.notes || '',
+    });
+    setShowAddVendor(true);
+  };
+
+  const handleSubmitVendor = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAlerts();
     setLoading(true);
+    const isEdit = editingVendorId !== null;
     try {
-      const res = await fetch('/api/master/vendors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(vendorForm),
-      });
+      const payload = {
+        name: vendorForm.name.trim(),
+        website: vendorForm.website.trim() || null,
+        supportContact: vendorForm.supportContact.trim() || null,
+        notes: vendorForm.notes.trim() || null,
+      };
+      const res = await fetch(
+        isEdit ? `/api/master/vendors/${editingVendorId}` : '/api/master/vendors',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gagal menambahkan vendor');
+      if (!res.ok) throw new Error(data.message || 'Gagal menyimpan vendor');
       setSuccessMsg(data.message);
+      toast.success(data.message);
       setShowAddVendor(false);
-      setVendorForm({ name: '', website: '', supportContact: '', notes: '' });
+      resetVendorForm();
       router.refresh();
-    } catch (err: any) {
-      setErrorMsg(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan vendor';
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteVendor = async (id: number, name: string) => {
-    if (!confirm(`Hapus vendor '${name}'?`)) return;
+    const confirmed = await confirmDialog({
+      title: `Hapus Vendor '${name}'?`,
+      message: `Data vendor '${name}' akan dihapus secara permanen dari master data.`,
+      confirmLabel: 'Hapus Vendor',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     clearAlerts();
     try {
       const res = await fetch(`/api/master/vendors/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal menghapus vendor');
       setSuccessMsg(data.message);
+      toast.success(data.message);
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message);
+      toast.error(err.message);
     }
   };
 
-  const handleCreateModel = async (e: React.FormEvent) => {
+  const resetModelForm = () => {
+    setEditingModelId(null);
+    setModelForm({
+      modelName: '',
+      modelCode: '',
+      vendorId: '',
+      categoryId: '',
+      description: '',
+    });
+  };
+
+  const startEditModel = (model: ModelItem) => {
+    clearAlerts();
+    setEditingModelId(model.id);
+    setModelForm({
+      modelName: model.modelName,
+      modelCode: model.modelCode,
+      vendorId: model.vendor.id.toString(),
+      categoryId: model.category.id.toString(),
+      description: model.description || '',
+    });
+    setShowAddModel(true);
+  };
+
+  const handleSubmitModel = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAlerts();
     setLoading(true);
+    const isEdit = editingModelId !== null;
     try {
-      const res = await fetch('/api/master/models', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          modelName: modelForm.modelName,
-          modelCode: modelForm.modelCode,
-          vendorId: parseInt(modelForm.vendorId, 10),
-          categoryId: parseInt(modelForm.categoryId, 10),
-          description: modelForm.description || undefined,
-        }),
-      });
+      const payload = {
+        modelName: modelForm.modelName.trim(),
+        modelCode: modelForm.modelCode.trim(),
+        vendorId: parseInt(modelForm.vendorId, 10),
+        categoryId: parseInt(modelForm.categoryId, 10),
+        description: modelForm.description.trim() || null,
+      };
+      const res = await fetch(
+        isEdit ? `/api/master/models/${editingModelId}` : '/api/master/models',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gagal menambahkan model');
+      if (!res.ok) throw new Error(data.message || 'Gagal menyimpan model');
       setSuccessMsg(data.message);
+      toast.success(data.message);
       setShowAddModel(false);
-      setModelForm({
-        modelName: '',
-        modelCode: '',
-        vendorId: '',
-        categoryId: '',
-        description: '',
-      });
+      resetModelForm();
       router.refresh();
-    } catch (err: any) {
-      setErrorMsg(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan model';
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteModel = async (id: number, name: string) => {
-    if (!confirm(`Hapus model '${name}'?`)) return;
+    const confirmed = await confirmDialog({
+      title: `Hapus Model '${name}'?`,
+      message: `Model perangkat '${name}' akan dihapus dari katalog master data.`,
+      confirmLabel: 'Hapus Model',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     clearAlerts();
     try {
       const res = await fetch(`/api/master/models/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal menghapus model');
       setSuccessMsg(data.message);
+      toast.success(data.message);
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -374,27 +569,36 @@ export function MasterDataClient({
       {/* SITES TAB */}
       {tab === 'sites' && (
         <div key="tab-sites" className="animate-enter space-y-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold text-ink">Daftar Lokasi & Site</h2>
-            {canManageSites && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (showAddSite) {
-                    setShowAddSite(false);
-                    resetSiteForm();
-                  } else {
-                    resetSiteForm();
-                    clearAlerts();
-                    setShowAddSite(true);
-                  }
-                }}
-                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/map"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-ink hover:bg-subtle"
               >
-                {!showAddSite && <IconPlus className="h-3.5 w-3.5" />}
-                <span>{showAddSite ? 'Batal' : 'Tambah Site'}</span>
-              </button>
-            )}
+                <IconGeoMap className="h-3.5 w-3.5 text-accent-ink" />
+                <span>Peta Koordinat</span>
+              </Link>
+              {canManageSites && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showAddSite) {
+                      setShowAddSite(false);
+                      resetSiteForm();
+                    } else {
+                      resetSiteForm();
+                      clearAlerts();
+                      setShowAddSite(true);
+                    }
+                  }}
+                  className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+                >
+                  {!showAddSite && <IconPlus className="h-3.5 w-3.5" />}
+                  <span>{showAddSite ? 'Batal' : 'Tambah Site'}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {showAddSite && (
@@ -531,6 +735,18 @@ export function MasterDataClient({
                     className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
+                <div className="sm:col-span-3">
+                  <CoordinateFields
+                    latId="master-site-lat"
+                    lngId="master-site-lng"
+                    latitude={siteForm.latitude}
+                    longitude={siteForm.longitude}
+                    onChange={({ latitude, longitude }) =>
+                      setSiteForm((prev) => ({ ...prev, latitude, longitude }))
+                    }
+                    disabled={loading}
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -564,6 +780,7 @@ export function MasterDataClient({
                     <th className="px-4 py-3">Tipe</th>
                     <th className="px-4 py-3">POP Induk</th>
                     <th className="px-4 py-3">Kota</th>
+                    <th className="px-4 py-3">Koordinat GPS</th>
                     <th className="px-4 py-3">Ruang / Rak</th>
                     <th className="px-4 py-3">Status</th>
                     {canManageSites && <th className="px-4 py-3 text-right">Tindakan</th>}
@@ -593,6 +810,29 @@ export function MasterDataClient({
                         )}
                       </td>
                       <td className="px-4 py-3 text-ink-secondary">{s.city || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-[11px]">
+                        {(() => {
+                          const coordLabel = formatCoordinates(s.latitude, s.longitude, 4);
+                          if (!coordLabel || s.latitude == null || s.longitude == null) {
+                            return <span className="text-ink-muted italic">Belum diatur</span>;
+                          }
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-ink-secondary">{coordLabel}</span>
+                              <a
+                                href={buildGoogleMapsUrl(s.latitude, s.longitude)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Buka ${s.name} di Google Maps`}
+                                className="inline-flex items-center gap-0.5 text-accent-ink hover:underline font-sans font-semibold"
+                              >
+                                <span>Maps</span>
+                                <IconExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-3 text-ink-secondary tabular-nums-data">
                         <div className="flex items-center gap-2">
                           <span>
@@ -662,7 +902,16 @@ export function MasterDataClient({
             {canManageVendors && (
               <button
                 type="button"
-                onClick={() => setShowAddVendor(!showAddVendor)}
+                onClick={() => {
+                  if (showAddVendor) {
+                    setShowAddVendor(false);
+                    resetVendorForm();
+                  } else {
+                    resetVendorForm();
+                    clearAlerts();
+                    setShowAddVendor(true);
+                  }
+                }}
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
                 {!showAddVendor && <IconPlus className="h-3.5 w-3.5" />}
@@ -673,10 +922,12 @@ export function MasterDataClient({
 
           {showAddVendor && (
             <form
-              onSubmit={handleCreateVendor}
+              onSubmit={handleSubmitVendor}
               className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
             >
-              <h3 className="text-sm font-bold text-ink">Form Tambah Vendor</h3>
+              <h3 className="text-sm font-bold text-ink">
+                {editingVendorId ? 'Form Edit Vendor' : 'Form Tambah Vendor'}
+              </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div>
                   <label htmlFor="vendor-name" className="block text-xs font-semibold text-ink-secondary">
@@ -737,7 +988,10 @@ export function MasterDataClient({
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowAddVendor(false)}
+                  onClick={() => {
+                    setShowAddVendor(false);
+                    resetVendorForm();
+                  }}
                   className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
@@ -747,7 +1001,11 @@ export function MasterDataClient({
                   disabled={loading}
                   className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
-                  {loading ? 'Menyimpan...' : 'Simpan Vendor'}
+                  {loading
+                    ? 'Menyimpan...'
+                    : editingVendorId
+                    ? 'Perbarui Vendor'
+                    : 'Simpan Vendor'}
                 </button>
               </div>
             </form>
@@ -791,14 +1049,24 @@ export function MasterDataClient({
                       </td>
                       {canManageVendors && (
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteVendor(v.id, v.name)}
-                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
-                          >
-                            <IconTrash className="h-3.5 w-3.5" />
-                            <span>Hapus</span>
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditVendor(v)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-accent-ink hover:bg-accent-soft font-medium"
+                            >
+                              <IconEdit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteVendor(v.id, v.name)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -813,7 +1081,112 @@ export function MasterDataClient({
       {/* CATEGORIES TAB */}
       {tab === 'categories' && (
         <div key="tab-categories" className="animate-enter space-y-4">
-          <h2 className="text-lg font-bold text-ink">Kategori Perangkat Jaringan</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-ink">Kategori Perangkat Jaringan</h2>
+            {canManageVendors && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (showAddCategory) {
+                    setShowAddCategory(false);
+                    resetCategoryForm();
+                  } else {
+                    resetCategoryForm();
+                    clearAlerts();
+                    setShowAddCategory(true);
+                  }
+                }}
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
+              >
+                {!showAddCategory && <IconPlus className="h-3.5 w-3.5" />}
+                <span>{showAddCategory ? 'Batal' : 'Tambah Kategori'}</span>
+              </button>
+            )}
+          </div>
+
+          {showAddCategory && (
+            <form
+              onSubmit={handleSubmitCategory}
+              className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
+            >
+              <h3 className="text-sm font-bold text-ink">
+                {editingCategoryId ? 'Form Edit Kategori Perangkat' : 'Form Tambah Kategori Perangkat'}
+              </h3>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="cat-code" className="block text-xs font-semibold text-ink-secondary">
+                    Kode Kategori *
+                  </label>
+                  <input
+                    id="cat-code"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={50}
+                    placeholder="Contoh: router, access_point, ups"
+                    value={categoryForm.code}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, code: e.target.value })}
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs font-mono lowercase text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="cat-name" className="block text-xs font-semibold text-ink-secondary">
+                    Nama Kategori *
+                  </label>
+                  <input
+                    id="cat-name"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="Contoh: Access Point / Router"
+                    value={categoryForm.name}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="cat-desc" className="block text-xs font-semibold text-ink-secondary">
+                    Deskripsi
+                  </label>
+                  <input
+                    id="cat-desc"
+                    type="text"
+                    maxLength={500}
+                    placeholder="Keterangan singkat jenis atau fungsi perangkat"
+                    value={categoryForm.description}
+                    onChange={(e) =>
+                      setCategoryForm({ ...categoryForm, description: e.target.value })
+                    }
+                    className="mt-1 min-h-[38px] block w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs text-ink placeholder-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCategory(false);
+                    resetCategoryForm();
+                  }}
+                  className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {loading
+                    ? 'Menyimpan...'
+                    : editingCategoryId
+                    ? 'Perbarui Kategori'
+                    : 'Simpan Kategori'}
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
             <div className="overflow-x-auto">
@@ -824,6 +1197,7 @@ export function MasterDataClient({
                     <th className="px-4 py-3">Nama Kategori</th>
                     <th className="px-4 py-3">Deskripsi</th>
                     <th className="px-4 py-3">Model Terdaftar</th>
+                    {canManageVendors && <th className="px-4 py-3 text-right">Tindakan</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line text-ink">
@@ -837,6 +1211,28 @@ export function MasterDataClient({
                       <td className="px-4 py-3 font-mono text-ink-secondary tabular-nums-data">
                         {c._count.models} model
                       </td>
+                      {canManageVendors && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditCategory(c)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-accent-ink hover:bg-accent-soft font-medium"
+                            >
+                              <IconEdit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(c.id, c.name)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -854,7 +1250,16 @@ export function MasterDataClient({
             {canManageVendors && (
               <button
                 type="button"
-                onClick={() => setShowAddModel(!showAddModel)}
+                onClick={() => {
+                  if (showAddModel) {
+                    setShowAddModel(false);
+                    resetModelForm();
+                  } else {
+                    resetModelForm();
+                    clearAlerts();
+                    setShowAddModel(true);
+                  }
+                }}
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-xs hover:bg-accent-hover"
               >
                 {!showAddModel && <IconPlus className="h-3.5 w-3.5" />}
@@ -865,10 +1270,12 @@ export function MasterDataClient({
 
           {showAddModel && (
             <form
-              onSubmit={handleCreateModel}
+              onSubmit={handleSubmitModel}
               className="animate-enter rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
             >
-              <h3 className="text-sm font-bold text-ink">Form Tambah Model</h3>
+              <h3 className="text-sm font-bold text-ink">
+                {editingModelId ? 'Form Edit Model' : 'Form Tambah Model'}
+              </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div>
                   <label htmlFor="model-vendor" className="block text-xs font-semibold text-ink-secondary">
@@ -953,7 +1360,10 @@ export function MasterDataClient({
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowAddModel(false)}
+                  onClick={() => {
+                    setShowAddModel(false);
+                    resetModelForm();
+                  }}
                   className="min-h-[38px] rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:bg-subtle hover:text-ink"
                 >
                   Batal
@@ -963,7 +1373,11 @@ export function MasterDataClient({
                   disabled={loading}
                   className="min-h-[38px] rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50"
                 >
-                  {loading ? 'Menyimpan...' : 'Simpan Model'}
+                  {loading
+                    ? 'Menyimpan...'
+                    : editingModelId
+                    ? 'Perbarui Model'
+                    : 'Simpan Model'}
                 </button>
               </div>
             </form>
@@ -998,14 +1412,24 @@ export function MasterDataClient({
                       <td className="px-4 py-3 text-ink-secondary">{m.description || '-'}</td>
                       {canManageVendors && (
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteModel(m.id, m.modelName)}
-                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
-                          >
-                            <IconTrash className="h-3.5 w-3.5" />
-                            <span>Hapus</span>
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditModel(m)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-accent-ink hover:bg-accent-soft font-medium"
+                            >
+                              <IconEdit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteModel(m.id, m.modelName)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 font-medium"
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { FeedbackProvider } from "@/components/FeedbackProvider";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -17,11 +18,18 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "NIMS | Sistem Inventaris Jaringan",
-    template: "%s | NIMS",
+    default: "Passnet Inventory Sistem",
+    template: "%s | Passnet Inventory Sistem",
   },
   description:
-    "Sistem manajemen inventaris perangkat jaringan, alamat IP, topologi relasi, dan jejak audit operasional.",
+    "Passnet Inventory Sistem - Manajemen inventaris perangkat jaringan, alamat IP, topologi relasi, dan jejak audit operasional.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: "/icon.png",
+  },
 };
 
 const themeInitScript = `
@@ -48,7 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body suppressHydrationWarning className="min-h-full bg-canvas text-ink font-sans antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <FeedbackProvider>{children}</FeedbackProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

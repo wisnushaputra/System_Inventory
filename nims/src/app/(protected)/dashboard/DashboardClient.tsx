@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
+import type { DashboardStatsData } from '@/lib/dashboard-stats';
 import {
   IconServer,
   IconPopBuilding,
@@ -16,40 +17,8 @@ import {
   IconAudit,
 } from '@/components/Icons';
 
-interface DashboardStats {
-  overview: {
-    totalActiveDevices: number;
-    totalArchivedDevices: number;
-    totalDevices: number;
-    totalSites: number;
-    totalSubnets: number;
-    totalConnections: number;
-    incompleteCount: number;
-    completenessPercentage: number;
-  };
-  devicesByCategory: { id: number; code: string; name: string; count: number }[];
-  devicesByStatus: { status: string; count: number }[];
-  devicesBySite: { id: number; siteCode: string; name: string; count: number }[];
-  incompleteDevices: {
-    id: number;
-    deviceCode: string;
-    hostname: string;
-    category: string;
-    site: string;
-    missingFields: string[];
-  }[];
-  recentActivities: {
-    id: number;
-    action: string;
-    entityType: string;
-    entityId: number | null;
-    createdAt: string;
-    user: { id: number; name: string; username: string } | null;
-  }[];
-}
-
 interface Props {
-  initialStats: DashboardStats | null;
+  initialStats: DashboardStatsData | null;
   user: { name: string; role: { name: string } };
   canCreateDevice: boolean;
   canViewAudit: boolean;
@@ -65,7 +34,7 @@ const ACTION_COLORS: Record<string, string> = {
   ARCHIVE:
     'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70',
   RESTORE:
-    'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/70',
+    'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/70',
   UPLOAD_DOCUMENT:
     'bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/70',
   DOWNLOAD_DOCUMENT:
@@ -85,7 +54,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function DashboardClient({ initialStats, user, canCreateDevice, canViewAudit }: Props) {
-  const [stats, setStats] = useState<DashboardStats | null>(initialStats);
+  const [stats, setStats] = useState<DashboardStatsData | null>(initialStats);
   const [loading, setLoading] = useState(!initialStats);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,6 +109,7 @@ export function DashboardClient({ initialStats, user, canCreateDevice, canViewAu
     devicesByStatus,
     devicesBySite,
     incompleteDevices,
+    dataHygiene,
     recentActivities,
   } = stats!;
 
@@ -368,7 +338,12 @@ export function DashboardClient({ initialStats, user, canCreateDevice, canViewAu
                   value={overview.totalSubnets}
                   className="text-2xl font-bold font-mono text-ink"
                 />
-                <p className="mt-1 text-[11px] text-ink-muted">Blok CIDR & alokasi IP</p>
+                <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                  <span className="text-ink-muted truncate">Blok CIDR & alokasi IP</span>
+                  <Link href="/ipam" className="font-semibold text-accent-ink hover:underline whitespace-nowrap shrink-0">
+                    Kelola IPAM
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -394,6 +369,252 @@ export function DashboardClient({ initialStats, user, canCreateDevice, canViewAu
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Duplicate SN / MAC & Data Anomaly Detector */}
+      <section
+        id="audit-anomali"
+        className="animate-enter stagger-3 rounded-xl border border-line bg-surface p-5 shadow-xs space-y-4"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-ink">
+              Detektor Duplikat &amp; Anomali Kualitas Data
+            </h2>
+            <p className="text-xs text-ink-secondary mt-0.5">
+              Pemindaian otomatis konflik Serial Number ganda, MAC Address ganda, perangkat ACTIVE tanpa IP atau port, serta lokasi tanpa koordinat peta.
+            </p>
+          </div>
+          <span
+            className={`self-start sm:self-auto rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums-data ${
+              dataHygiene.anomalies.totalAnomalySignals === 0
+                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300'
+                : 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-200'
+            }`}
+          >
+            {dataHygiene.anomalies.totalAnomalySignals === 0
+              ? 'Bebas Konflik'
+              : `${dataHygiene.anomalies.totalAnomalySignals} Temuan Anomali`}
+          </span>
+        </div>
+
+        {/* 5 Anomaly Shortcut Cards */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 text-xs">
+          <div
+            className={`rounded-lg border p-3.5 flex flex-col justify-between gap-1.5 ${
+              dataHygiene.duplicateSerialNumbers.length > 0
+                ? 'border-rose-300 dark:border-rose-900/70 bg-rose-50/70 dark:bg-rose-950/35'
+                : 'border-line bg-canvas'
+            }`}
+          >
+            <span className="font-semibold text-ink-secondary">Konflik Serial Number</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-bold text-ink tabular-nums-data">
+                {dataHygiene.duplicateSerialNumbers.length}
+              </span>
+              <span className="text-[11px] text-ink-muted">grup ganda</span>
+            </div>
+          </div>
+
+          <div
+            className={`rounded-lg border p-3.5 flex flex-col justify-between gap-1.5 ${
+              dataHygiene.duplicateMacAddresses.length > 0
+                ? 'border-rose-300 dark:border-rose-900/70 bg-rose-50/70 dark:bg-rose-950/35'
+                : 'border-line bg-canvas'
+            }`}
+          >
+            <span className="font-semibold text-ink-secondary">Konflik MAC Address</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-bold text-ink tabular-nums-data">
+                {dataHygiene.duplicateMacAddresses.length}
+              </span>
+              <span className="text-[11px] text-ink-muted">grup ganda</span>
+            </div>
+          </div>
+
+          <Link
+            href="/devices?view=global&inventoryStatus=ACTIVE&anomaly=no_ip"
+            className="rounded-lg border border-line bg-canvas p-3.5 flex flex-col justify-between gap-1.5 transition-colors hover:border-accent hover:bg-accent-soft/30"
+          >
+            <span className="font-semibold text-ink-secondary">ACTIVE Tanpa IP Manajemen</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-bold text-ink tabular-nums-data">
+                {dataHygiene.anomalies.activeWithoutIpCount}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-ink">
+                <span>Filter</span>
+                <IconArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/devices?view=global&inventoryStatus=ACTIVE&anomaly=no_ports"
+            className="rounded-lg border border-line bg-canvas p-3.5 flex flex-col justify-between gap-1.5 transition-colors hover:border-accent hover:bg-accent-soft/30"
+          >
+            <span className="font-semibold text-ink-secondary">ACTIVE Tanpa Port</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-bold text-ink tabular-nums-data">
+                {dataHygiene.anomalies.activeWithoutPortsCount}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-ink">
+                <span>Filter</span>
+                <IconArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/map"
+            className="rounded-lg border border-line bg-canvas p-3.5 flex flex-col justify-between gap-1.5 transition-colors hover:border-accent hover:bg-accent-soft/30"
+          >
+            <span className="font-semibold text-ink-secondary">Site Tanpa Koordinat</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-bold text-ink tabular-nums-data">
+                {dataHygiene.anomalies.sitesWithoutCoordsCount}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-ink">
+                <span>Buka Peta</span>
+                <IconArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Two-column Detail Grid: Duplicate Serial Number + Duplicate MAC Address */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 text-xs">
+          <div className="rounded-lg border border-line bg-canvas p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
+              <h3 className="font-bold text-ink">Duplikat Serial Number</h3>
+              <span className="font-mono text-[11px] text-ink-muted tabular-nums-data">
+                {dataHygiene.duplicateSerialNumbers.length} konflik
+              </span>
+            </div>
+
+            {dataHygiene.duplicateSerialNumbers.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-emerald-800 dark:text-emerald-300">
+                <IconCheckCircle className="h-4 w-4 shrink-0" />
+                <span>Tidak ada Serial Number ganda pada perangkat aktif.</span>
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {dataHygiene.duplicateSerialNumbers.map((group) => (
+                  <div
+                    key={group.serialNumber}
+                    className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-surface p-3 space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-rose-700 dark:text-rose-300">
+                          {group.serialNumber}
+                        </span>
+                        <span className="rounded bg-rose-100 dark:bg-rose-950/70 px-1.5 py-0.5 text-[10px] font-bold text-rose-800 dark:text-rose-200">
+                          {group.count} unit
+                        </span>
+                      </div>
+                      <Link
+                        href={`/devices?view=global&q=${encodeURIComponent(group.serialNumber)}`}
+                        className="font-semibold text-accent-ink hover:underline"
+                      >
+                        Filter di Tabel Global
+                      </Link>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.devices.map((dev) => (
+                        <Link
+                          key={dev.id}
+                          href={`/devices/${dev.id}`}
+                          className="inline-flex items-center gap-1 rounded border border-line bg-canvas px-2 py-1 text-[11px] font-medium text-ink hover:border-accent hover:text-accent-ink"
+                        >
+                          <span className="font-mono text-ink-muted">{dev.deviceCode}</span>
+                          <span>{dev.hostname}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-line bg-canvas p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
+              <h3 className="font-bold text-ink">Duplikat MAC Address Port</h3>
+              <span className="font-mono text-[11px] text-ink-muted tabular-nums-data">
+                {dataHygiene.duplicateMacAddresses.length} konflik
+              </span>
+            </div>
+
+            {dataHygiene.duplicateMacAddresses.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-emerald-800 dark:text-emerald-300">
+                <IconCheckCircle className="h-4 w-4 shrink-0" />
+                <span>Tidak ada MAC Address ganda antar-port perangkat aktif.</span>
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {dataHygiene.duplicateMacAddresses.map((group) => (
+                  <div
+                    key={group.macAddress}
+                    className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-surface p-3 space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-rose-700 dark:text-rose-300">
+                          {group.macAddress}
+                        </span>
+                        <span className="rounded bg-rose-100 dark:bg-rose-950/70 px-1.5 py-0.5 text-[10px] font-bold text-rose-800 dark:text-rose-200">
+                          {group.count} port
+                        </span>
+                      </div>
+                      <Link
+                        href={`/devices?view=global&q=${encodeURIComponent(group.macAddress)}`}
+                        className="font-semibold text-accent-ink hover:underline"
+                      >
+                        Cari MAC di Tabel Global
+                      </Link>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.interfaces.map((iface) => (
+                        <Link
+                          key={iface.id}
+                          href={`/devices/${iface.deviceId}?tab=ports`}
+                          className="inline-flex items-center gap-1 rounded border border-line bg-canvas px-2 py-1 text-[11px] font-medium text-ink hover:border-accent hover:text-accent-ink"
+                        >
+                          <span className="font-mono text-ink-muted">{iface.deviceCode}</span>
+                          <span>{iface.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sites Missing Coordinates Footer Strip */}
+        {dataHygiene.anomalies.sitesWithoutCoords.length > 0 && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/35 p-3.5 text-xs space-y-2">
+            <div className="flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-200">
+              <IconAlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                Site Aktif Belum Memiliki Koordinat Peta ({dataHygiene.anomalies.sitesWithoutCoordsCount} site):
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {dataHygiene.anomalies.sitesWithoutCoords.map((site) => (
+                <Link
+                  key={site.id}
+                  href={`/map?siteId=${site.id}`}
+                  className="inline-flex items-center gap-1 rounded border border-amber-300 dark:border-amber-800 bg-surface px-2.5 py-1 text-[11px] font-medium text-ink hover:border-accent hover:text-accent-ink"
+                >
+                  <span className="font-mono text-ink-muted">{site.siteCode}</span>
+                  <span>{site.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Incomplete Data Audit Table */}

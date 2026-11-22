@@ -85,16 +85,16 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
   const current = await prisma.deviceCategory.findUnique({
     where: { id },
     include: {
-      _count: { select: { models: true } },
+      _count: { select: { models: true, devices: true } },
     },
   });
 
   if (!current) return NextResponse.json({ message: 'Kategori tidak ditemukan' }, { status: 404 });
 
-  if (current._count.models > 0) {
+  if (current._count.models > 0 || current._count.devices > 0) {
     return NextResponse.json(
       {
-        message: `Tidak dapat menghapus kategori '${current.name}' karena masih digunakan oleh ${current._count.models} model perangkat.`,
+        message: `Tidak dapat menghapus kategori '${current.name}' karena masih digunakan oleh ${current._count.models} model dan ${current._count.devices} perangkat.`,
       },
       { status: 409 }
     );
@@ -102,7 +102,7 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
 
   try {
     await prisma.deviceCategory.delete({ where: { id } });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json({ message: 'Gagal menghapus kategori: data masih terkait di sistem' }, { status: 409 });
   }
 

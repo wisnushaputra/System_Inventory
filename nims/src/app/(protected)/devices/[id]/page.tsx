@@ -2,13 +2,32 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requirePermission, hasPermission } from '@/lib/auth';
 import { DeviceDetailClient } from './DeviceDetailClient';
+import { extractDeviceAuditChanges } from '@/lib/device-audit-diff';
 
 export const instant = false;
 
-export default async function DeviceDetailPage(props: { params: Promise<{ id: string }> }) {
+const VALID_TABS = new Set(['overview', 'network', 'ports', 'connections', 'documents', 'history']);
+
+export default async function DeviceDetailPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const user = await requirePermission('device.view');
 
-  const params = await props.params;
+  const [params, resolvedSearchParams] = await Promise.all([
+    props.params,
+    props.searchParams ? props.searchParams : Promise.resolve({ tab: undefined }),
+  ]);
+  const initialTab =
+    resolvedSearchParams.tab && VALID_TABS.has(resolvedSearchParams.tab)
+      ? (resolvedSearchParams.tab as
+          | 'overview'
+          | 'network'
+          | 'ports'
+          | 'connections'
+          | 'documents'
+          | 'history')
+      : 'overview';
   const id = parseInt(params.id, 10);
   if (isNaN(id)) notFound();
 
@@ -54,36 +73,53 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
 
   if (!device) notFound();
 
-  const [history, connections] = await Promise.all([
-    prisma.auditLog.findMany({
-      where: { entityType: 'Device', entityId: id },
-      include: { user: { select: { name: true, username: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    }),
-    prisma.networkConnection.findMany({
-      where: {
-        OR: [
-          { endpointAInterface: { deviceId: id } },
-          { endpointBInterface: { deviceId: id } },
-        ],
-      },
-      include: {
-        endpointAInterface: {
-          include: {
-            device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
+  const [history, connections, allSites, allRooms, allRacks, allCategories, allVendors, allModels] =
+    await Promise.all([
+      prisma.auditLog.findMany({
+        where: { entityType: 'Device', entityId: id },
+        include: { user: { select: { name: true, username: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.networkConnection.findMany({
+        where: {
+          OR: [
+            { endpointAInterface: { deviceId: id } },
+            { endpointBInterface: { deviceId: id } },
+          ],
+        },
+        include: {
+          endpointAInterface: {
+            include: {
+              device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
+            },
+          },
+          endpointBInterface: {
+            include: {
+              device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
+            },
           },
         },
-        endpointBInterface: {
-          include: {
-            device: { select: { id: true, hostname: true, deviceCode: true, archivedAt: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-  ]);
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.site.findMany({ select: { id: true, siteCode: true, name: true } }),
+      prisma.room.findMany({ select: { id: true, name: true } }),
+      prisma.rack.findMany({ select: { id: true, name: true } }),
+      prisma.deviceCategory.findMany({ select: { id: true, name: true } }),
+      prisma.vendor.findMany({ select: { id: true, name: true } }),
+      prisma.deviceModel.findMany({ select: { id: true, modelName: true } }),
+    ]);
 
+  const auditLookupMaps = {
+    sites: new Map(allSites.map((s) => [s.id, `${s.siteCode} - ${s.name}`])),
+    rooms: new Map(allRooms.map((r) => [r.id, r.name])),
+    racks: new Map(allRacks.map((rk) => [rk.id, rk.name])),
+    categories: new Map(allCategories.map((c) => [c.id, c.name])),
+    vendors: new Map(allVendors.map((v) => [v.id, v.name])),
+    models: new Map(allModels.map((m) => [m.id, m.modelName])),
+  };
+
+  const canCreate = hasPermission(user, 'device.create');
   const canUpdateDevice = hasPermission(user, 'device.update');
   const canEdit = canUpdateDevice || hasPermission(user, 'interface.manage');
   const canArchive = hasPermission(user, 'device.archive');
@@ -164,18 +200,21 @@ export default async function DeviceDetailPage(props: { params: Promise<{ id: st
     user: h.user,
     beforeData: h.beforeData,
     afterData: h.afterData,
+    changes: extractDeviceAuditChanges(h.action, h.beforeData, h.afterData, auditLookupMaps),
   }));
 
   return (
     <DeviceDetailClient
       device={serializedDevice}
       history={serializedHistory}
+      canCreate={canCreate}
       canEdit={canEdit}
       canUpdateDevice={canUpdateDevice}
       canArchive={canArchive}
       canUploadDoc={canUploadDoc}
       canManageIp={canManageIp}
       canManageSites={canManageSites}
+      initialTab={initialTab}
     />
   );
 }

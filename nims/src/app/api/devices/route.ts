@@ -21,6 +21,7 @@ const DeviceCreateSchema = z.object({
   installedAt: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
   warrantyExpiry: z.string().datetime().optional().nullable().or(z.literal('')).transform((v) => (v ? new Date(v) : null)),
   ownerTeam: z.string().trim().max(100).optional().nullable(),
+  clonePortsFromDeviceId: z.number().int().positive().optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -38,6 +39,7 @@ export async function GET(req: Request) {
   const siteId = url.searchParams.get('siteId');
   const inventoryStatus = url.searchParams.get('inventoryStatus')?.trim();
   const networkRole = url.searchParams.get('networkRole')?.trim();
+  const anomaly = url.searchParams.get('anomaly')?.trim();
   const isArchived = url.searchParams.get('isArchived') === 'true';
 
   const sortBy = url.searchParams.get('sortBy') || 'createdAt';
@@ -56,6 +58,7 @@ export async function GET(req: Request) {
               { model: { modelCode: { contains: q, mode: 'insensitive' } } },
               { site: { name: { contains: q, mode: 'insensitive' } } },
               { ipAddresses: { some: { address: { contains: q, mode: 'insensitive' } } } },
+              { interfaces: { some: { macAddress: { contains: q, mode: 'insensitive' } } } },
             ],
           }
         : {},
@@ -64,6 +67,15 @@ export async function GET(req: Request) {
       siteId ? { siteId: parseInt(siteId, 10) } : {},
       inventoryStatus ? { inventoryStatus } : {},
       networkRole ? { networkRole } : {},
+      anomaly === 'no_ip'
+        ? { ipAddresses: { none: { purpose: 'management', allocationStatus: 'ALLOCATED' } } }
+        : anomaly === 'no_sn'
+          ? { OR: [{ serialNumber: null }, { serialNumber: '' }] }
+          : anomaly === 'no_rack'
+            ? { AND: [{ roomId: null }, { rackId: null }] }
+            : anomaly === 'no_ports'
+              ? { interfaces: { none: {} } }
+              : {},
     ],
   };
 
@@ -118,49 +130,113 @@ export async function POST(req: Request) {
     );
   }
 
+  const { clonePortsFromDeviceId, ...deviceInput } = parsed.data;
+
   // Cek duplikat deviceCode (AC §6.1 poin 4)
   const existingCode = await prisma.device.findUnique({
-    where: { deviceCode: parsed.data.deviceCode },
+    where: { deviceCode: deviceInput.deviceCode },
   });
   if (existingCode) {
     return NextResponse.json(
-      { message: `Kode perangkat '${parsed.data.deviceCode}' sudah digunakan di inventaris` },
+      { message: `Kode perangkat '${deviceInput.deviceCode}' sudah digunakan di inventaris` },
       { status: 409 }
     );
   }
 
   // Validasi foreign keys
   const [cat, ven, site] = await Promise.all([
-    prisma.deviceCategory.findUnique({ where: { id: parsed.data.categoryId } }),
-    prisma.vendor.findUnique({ where: { id: parsed.data.vendorId } }),
-    prisma.site.findUnique({ where: { id: parsed.data.siteId } }),
+    prisma.deviceCategory.findUnique({ where: { id: deviceInput.categoryId } }),
+    prisma.vendor.findUnique({ where: { id: deviceInput.vendorId } }),
+    prisma.site.findUnique({ where: { id: deviceInput.siteId } }),
   ]);
 
   if (!cat) return NextResponse.json({ message: 'Kategori tidak valid' }, { status: 400 });
   if (!ven) return NextResponse.json({ message: 'Vendor tidak valid' }, { status: 400 });
   if (!site) return NextResponse.json({ message: 'Site/Lokasi tidak valid' }, { status: 400 });
 
-  if (parsed.data.modelId) {
-    const model = await prisma.deviceModel.findUnique({ where: { id: parsed.data.modelId } });
-    if (!model || model.vendorId !== parsed.data.vendorId) {
+  if (deviceInput.modelId) {
+    const model = await prisma.deviceModel.findUnique({ where: { id: deviceInput.modelId } });
+    if (!model || model.vendorId !== deviceInput.vendorId) {
       return NextResponse.json({ message: 'Model tidak sesuai dengan vendor yang dipilih' }, { status: 400 });
     }
   }
 
-  const device = await prisma.device.create({
-    data: {
-      ...parsed.data,
-      createdBy: user.id,
-      updatedBy: user.id,
-    },
-    include: {
-      category: true,
-      vendor: true,
-      model: true,
-      site: true,
-      room: true,
-      rack: true,
-    },
+  let sourceInterfaces: {
+    name: string;
+    label: string | null;
+    interfaceType: string;
+    mediaType: string | null;
+    speedMbps: number | null;
+    portMode: string | null;
+    vlanId: number | null;
+    description: string | null;
+  }[] = [];
+
+  if (clonePortsFromDeviceId) {
+    const sourceDevice = await prisma.device.findUnique({
+      where: { id: clonePortsFromDeviceId },
+      include: {
+        interfaces: {
+          select: {
+            name: true,
+            label: true,
+            interfaceType: true,
+            mediaType: true,
+            speedMbps: true,
+            portMode: true,
+            vlanId: true,
+            description: true,
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+    if (!sourceDevice) {
+      return NextResponse.json(
+        { message: 'Perangkat sumber duplikasi port tidak ditemukan.' },
+        { status: 404 }
+      );
+    }
+    sourceInterfaces = sourceDevice.interfaces;
+  }
+
+  const device = await prisma.$transaction(async (tx) => {
+    const createdDevice = await tx.device.create({
+      data: {
+        ...deviceInput,
+        createdBy: user.id,
+        updatedBy: user.id,
+      },
+      include: {
+        category: true,
+        vendor: true,
+        model: true,
+        site: true,
+        room: true,
+        rack: true,
+      },
+    });
+
+    if (sourceInterfaces.length > 0) {
+      await tx.interface.createMany({
+        data: sourceInterfaces.map((iface) => ({
+          deviceId: createdDevice.id,
+          name: iface.name,
+          label: iface.label,
+          interfaceType: iface.interfaceType,
+          mediaType: iface.mediaType,
+          speedMbps: iface.speedMbps,
+          adminStatus: 'enabled',
+          operStatus: 'unknown',
+          macAddress: null,
+          portMode: iface.portMode,
+          vlanId: iface.vlanId,
+          description: iface.description,
+        })),
+      });
+    }
+
+    return createdDevice;
   });
 
   await logAudit({
@@ -172,5 +248,30 @@ export async function POST(req: Request) {
     req,
   });
 
-  return NextResponse.json({ message: 'Perangkat berhasil ditambahkan', data: device }, { status: 201 });
+  if (sourceInterfaces.length > 0) {
+    await logAudit({
+      userId: user.id,
+      action: 'BATCH_CREATE_INTERFACES',
+      entityType: 'Interface',
+      entityId: device.id,
+      afterData: {
+        clonedFromDeviceId: clonePortsFromDeviceId,
+        count: sourceInterfaces.length,
+        names: sourceInterfaces.map((i) => i.name),
+      },
+      req,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      message:
+        sourceInterfaces.length > 0
+          ? `Perangkat berhasil ditambahkan dengan ${sourceInterfaces.length} port hasil duplikasi.`
+          : 'Perangkat berhasil ditambahkan',
+      data: device,
+      clonedPortsCount: sourceInterfaces.length,
+    },
+    { status: 201 }
+  );
 }

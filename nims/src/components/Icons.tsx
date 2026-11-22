@@ -1,6 +1,9 @@
-import type { SVGProps } from 'react';
+import type { ImgHTMLAttributes, SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement>;
+type BrandLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> & {
+  alt?: string;
+};
 
 function baseProps(props: IconProps): IconProps {
   return {
@@ -14,25 +17,40 @@ function baseProps(props: IconProps): IconProps {
   };
 }
 
-export function NimsBrandMark({ className = 'h-7 w-7', ...props }: IconProps) {
+export function PassnetBrandMark({
+  className = 'h-7 w-7',
+  alt = '',
+  ...props
+}: BrandLogoProps) {
   return (
-    <svg viewBox="0 0 28 28" className={className} fill="none" aria-hidden="true" {...props}>
-      <rect x="2" y="2" width="24" height="24" rx="6" className="fill-accent" />
-      <path
-        d="M9 18V10l10 8V10"
-        stroke="currentColor"
-        className="text-accent-fg"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="9" cy="10" r="1.75" className="fill-accent-fg" />
-      <circle cx="9" cy="18" r="1.75" className="fill-accent-fg" />
-      <circle cx="19" cy="10" r="1.75" className="fill-accent-fg" />
-      <circle cx="19" cy="18" r="1.75" className="fill-accent-fg" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/passnet-icon.png"
+      alt={alt}
+      aria-hidden={alt === '' ? true : undefined}
+      className={`object-contain select-none ${className}`}
+      {...props}
+    />
   );
 }
+
+export function PassnetWordmark({
+  className = 'h-7 w-auto',
+  alt = 'Passnet',
+  ...props
+}: BrandLogoProps) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/passnet-logo.png"
+      alt={alt}
+      className={`object-contain select-none ${className}`}
+      {...props}
+    />
+  );
+}
+
+export const NimsBrandMark = PassnetBrandMark;
 
 export function IconDashboard(props: IconProps) {
   return (
@@ -432,6 +450,53 @@ export function IconEyeOff(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...baseProps(props)}>
       <path d="M3 3l18 18M10.6 6a9.6 9.6 0 0 1 1.4-.1C18.5 5.9 22 12 22 12a17.6 17.6 0 0 1-3.3 4.3M6.6 6.6C3.9 8.6 2 12 2 12s3.5 6.5 10 6.5c1.5 0 2.9-.3 4.2-.8" />
+    </svg>
+  );
+}
+
+export function IconQrCode(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...baseProps(props)}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="M14 14h3v3h-3zM19 14v2M14 19h2M18 18h3v3h-3z" />
+    </svg>
+  );
+}
+
+export function IconPrinter(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...baseProps(props)}>
+      <path d="M6 9V3h12v6" />
+      <rect x="3" y="9" width="18" height="8" rx="2" />
+      <path d="M6 14h12v7H6z" />
+    </svg>
+  );
+}
+
+export function IconGeoMap(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...baseProps(props)}>
+      <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z" />
+      <path d="M9 4v14M15 6v14" />
+    </svg>
+  );
+}
+
+export function IconExternalLink(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...baseProps(props)}>
+      <path d="M14 4h6v6M10 14L20 4M18 13v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19.5v-11A1.5 1.5 0 0 1 5.5 7H11" />
+    </svg>
+  );
+}
+
+export function IconCopy(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...baseProps(props)}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
   );
 }
